@@ -1,0 +1,241 @@
+import React, { useEffect, useRef } from 'react';
+import {
+  Animated,
+  Platform,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+
+import HomeScreen from '../screens/Home/HomeScreen';
+import AllBookingScreen from '../screens/Booking/AllBooking';
+import ProfileScreen from '../screens/Profile/ProfileScreen';
+
+const Tab = createBottomTabNavigator();
+
+const ICONS: Record<string, string> = {
+  Home: 'home-outline',
+  Bookings: 'calendar-outline',
+  Profile: 'person-outline',
+};
+
+function CustomTabBar({
+  state,
+  descriptors,
+  navigation,
+}: BottomTabBarProps) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  const containerWidth = width * 0.92;
+
+  const tabCount = state.routes.length;
+  const tabWidth = containerWidth / tabCount;
+  const indicatorWidth = Math.max(80, tabWidth * 0.9);
+
+  const translateX = useRef(
+    new Animated.Value(
+      state.index * tabWidth + (tabWidth - indicatorWidth) / 2,
+    ),
+  ).current;
+
+  useEffect(() => {
+    Animated.spring(translateX, {
+      toValue:
+        state.index * tabWidth +
+        (tabWidth - indicatorWidth) / 2,
+      useNativeDriver: true,
+      speed: 18,
+      bounciness: 8,
+    }).start();
+  }, [state.index, tabWidth, indicatorWidth]);
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.container,
+        {
+          bottom:
+            Platform.OS === 'android'
+              ? insets.bottom + 10
+              : 20,
+        },
+    ]}>
+      <View
+        style={[
+          styles.tabBackground,
+          {
+            width: containerWidth,
+          },
+        ]}>
+        <Animated.View
+          style={[
+            styles.activeIndicator,
+            {
+              width: indicatorWidth,
+              transform: [{ translateX }],
+            },
+          ]}
+        />
+
+        {state.routes.map((route, index) => {
+          const isFocused = state.index === index;
+
+          const rawLabel =
+            descriptors[route.key].options.title ??
+            descriptors[route.key].options.tabBarLabel ??
+            route.name;
+
+          const label =
+            typeof rawLabel === 'string'
+              ? rawLabel
+              : route.name;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          return (
+            <Pressable
+              key={route.key}
+              onPress={onPress}
+              style={[
+                styles.tabButton,
+                {
+                  width: tabWidth,
+                },
+              ]}>
+              <View style={styles.tabInner}>
+                <Ionicons
+                    name={ICONS[label] || 'ellipse-outline'}
+                    size={22}
+                    color={isFocused ? '#FFF' : '#FFB02E'}
+                />
+                {isFocused && (
+                  <Text style={styles.activeLabel}>
+                    {label}
+                  </Text>
+                )}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+
+  tabBackground: {
+    height: 64,
+    borderRadius: 40,
+    backgroundColor: '#FFF',
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    paddingHorizontal: 8,
+
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+
+    elevation: 10,
+  },
+
+  activeIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 6,
+
+    height: 52,
+    borderRadius: 30,
+
+    backgroundColor: '#FFB02E',
+
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    alignItems:'center',justifyContent:'center',
+
+    elevation: 5,
+  },
+
+  tabButton: {
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf:'center'
+  },
+
+  tabInner: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf:'center'
+  },
+
+  icon: {
+    fontSize: 18,
+  },
+
+  activeIcon: {
+    color: '#FFF',
+    fontWeight: '700',
+  },
+
+  inactiveIcon: {
+    color: '#FFFFFF',
+  },
+
+  activeLabel: {
+    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+});
+
+export default function BottomNavigation() {
+  return (
+    <Tab.Navigator
+      initialRouteName="Home"
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <CustomTabBar {...props} />}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Bookings" component={AllBookingScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
