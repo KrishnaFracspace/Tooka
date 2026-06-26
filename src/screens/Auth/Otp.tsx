@@ -1,5 +1,23 @@
-import React, { useEffect, useRef, useState } from 'react';
+// ─────────────────────────────────────────────────────────────────────────────
+// OtpScreen
+//
+// Navigation after successful OTP verification:
+//
+//  Case A — from SpaDetails booking flow (spaId present):
+//   → navigate to SpaDetails with openEnquiry=true
+//
+//  Case B — from Profile tab embedded Login (isFromProfileTab=true):
+//   → navigate to BottomNavigation (reset stack)
+//   → The Profile tab will automatically show ProfileScreen because
+//     auth state is now updated (isAuthenticated=true).
+//
+//  Case C — fallback (neither spaId nor isFromProfileTab):
+//   → goBack() to the calling screen
+// ─────────────────────────────────────────────────────────────────────────────
+
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   View,
   Text,
@@ -11,8 +29,18 @@ import {
   TextInputKeyPressEventData,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { useAuth } from '../../context/AuthContext';
 
 const OTP_LENGTH = 6;
+
+type OtpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Otp'>;
+type OtpScreenRouteProp = RouteProp<RootStackParamList, 'Otp'>;
+
+// ─── OTP Digit Input ─────────────────────────────────────────────────────────
 
 type OtpDigitInputProps = {
   value: string;
@@ -42,29 +70,48 @@ const OtpDigitInput: React.FC<OtpDigitInputProps> = ({
     onFocus={onFocus}
     style={[styles.otpCell, active && styles.otpCellActive]}
     textContentType="oneTimeCode"
-    selectionColor="#7B8B55"
+    selectionColor="#FFB02E"
   />
 );
+
+// ─── OtpScreen ────────────────────────────────────────────────────────────────
 
 const OtpScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
+  const navigation = useNavigation<OtpScreenNavigationProp>();
+  const route = useRoute<OtpScreenRouteProp>();
+  const {
+    phoneNumber = '',
+    spaId,
+    serviceId,
+    serviceName,
+    isFromProfileTab = false,
+  } = route.params ?? {};
+  const { verifyOtp, loginStart } = useAuth();
+
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [activeIndex, setActiveIndex] = useState<number>(0);
-  const [seconds, setSeconds] = useState<number>(23);
+  const [seconds, setSeconds] = useState<number>(30);
+  const [verifying, setVerifying] = useState<boolean>(false);
   const inputsRef = useRef<Array<TextInput | null>>([]);
+
+  // ─── Countdown Timer ──────────────────────────────────────────────────────
 
   useEffect(() => {
     const timer = setInterval(() => {
       setSeconds((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
+
+  // ─── Auto-focus ───────────────────────────────────────────────────────────
 
   useEffect(() => {
     inputsRef.current[activeIndex]?.focus();
   }, [activeIndex]);
+
+  // ─── OTP Input Handlers ───────────────────────────────────────────────────
 
   const handleChangeText = (text: string, index: number) => {
     if (!text) {
@@ -106,13 +153,89 @@ const OtpScreen: React.FC = () => {
     }
   };
 
-  const handleResend = () => {
-    setSeconds(30);
-    setOtp(Array(OTP_LENGTH).fill(''));
-    setActiveIndex(0);
-  };
+  // ─── Resend OTP ───────────────────────────────────────────────────────────
+
+  const handleResend = useCallback(async () => {
+    if (!phoneNumber) return;
+    try {
+      await loginStart(phoneNumber);
+      setSeconds(30);
+      setOtp(Array(OTP_LENGTH).fill(''));
+      setActiveIndex(0);
+      Toast.show({ type: 'success', text1: 'OTP resent' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Please try again.';
+      Toast.show({
+        type: 'error',
+        text1: 'Could not resend OTP',
+        text2: message,
+      });
+    }
+  }, [phoneNumber, loginStart]);
+
+  // ─── Verify ───────────────────────────────────────────────────────────────
 
   const isComplete = otp.every((digit) => digit !== '');
+
+  const handleVerify = useCallback(async () => {
+    if (verifying || !isComplete) return;
+
+    const code = otp.join('');
+    setVerifying(true);
+    try {
+    //   await verifyOtp(phoneNumber, code);
+      const loggedInUser =
+  await verifyOtp(phoneNumber, code);
+
+      // Navigate based on the origin of the OTP flow.
+      if (spaId) {
+        // Case A: Booking flow — return to SpaDetails with enquiry open.
+        navigation.navigate('SpaDetails', {
+          spaId,
+          serviceId,
+          serviceName,
+          openEnquiry: true,
+        });
+      } else if (isFromProfileTab) {
+        // Case B: Profile tab flow — go to BottomNavigation.
+        // The Profile tab will automatically render ProfileScreen because
+        // isAuthenticated is now true (auth state already updated above).
+        console.log(
+            'LOGIN SUCCESS USER =>',
+            loggedInUser,
+        );
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'BottomNavigation' }],
+        });
+      } else {
+        // Case C: Generic fallback — go back to calling screen.
+        navigation.goBack();
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Please check the code and try again.';
+      Toast.show({
+        type: 'error',
+        text1: 'OTP verification failed',
+        text2: message,
+      });
+    } finally {
+      setVerifying(false);
+    }
+  }, [
+    verifying,
+    isComplete,
+    otp,
+    verifyOtp,
+    phoneNumber,
+    spaId,
+    serviceId,
+    serviceName,
+    isFromProfileTab,
+    navigation,
+  ]);
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -125,7 +248,7 @@ const OtpScreen: React.FC = () => {
             </View>
             <Text style={styles.heroTitle}>Verify your number</Text>
             <Text style={styles.heroSubtitle}>Enter the 6-digit code sent to</Text>
-            <Text style={styles.heroPhone}>+91 1234567890</Text>
+            <Text style={styles.heroPhone}>+91 {phoneNumber}</Text>
           </View>
         </View>
 
@@ -156,15 +279,27 @@ const OtpScreen: React.FC = () => {
         </View>
 
         <Pressable
-          style={[styles.verifyButton, isComplete ? styles.verifyButtonActive : styles.verifyButtonDisabled]}
-          disabled={!isComplete}
+          style={[
+            styles.verifyButton,
+            isComplete && !verifying
+              ? styles.verifyButtonActive
+              : styles.verifyButtonDisabled,
+          ]}
+          disabled={!isComplete || verifying}
+          onPress={handleVerify}
         >
-          <Text style={styles.verifyButtonText}>Verify OTP</Text>
+          {verifying ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.verifyButtonText}>Verify OTP</Text>
+          )}
         </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 };
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -178,7 +313,7 @@ const styles = StyleSheet.create({
   hero: {
     marginTop: 12,
     borderRadius: 32,
-    backgroundColor: '#8F9E75',
+    backgroundColor: '#FFB02E',
     minHeight: 380,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -253,7 +388,7 @@ const styles = StyleSheet.create({
     borderColor: '#E3E0D7',
   },
   otpCellActive: {
-    borderColor: '#7B8B55',
+    borderColor: '#FFB02E',
   },
   otpFooter: {
     flexDirection: 'row',
@@ -262,22 +397,23 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   otpFooterText: {
-    color: '#7B8B55',
+    color: '#FFB02E',
     fontSize: 14,
   },
   otpFooterTimer: {
-    color: '#7B8B55',
+    color: '#FFB02E',
     fontSize: 14,
     fontWeight: '700',
     marginHorizontal: 6,
   },
   otpFooterLink: {
-    color: '#7B8B55',
+    color: '#FFB02E',
     fontSize: 14,
     fontWeight: '700',
   },
   otpFooterLinkDisabled: {
-    color: '#A0A089',
+    color: '#FFB02E',
+    opacity: 0.5,
   },
   verifyButton: {
     marginTop: 26,
@@ -286,10 +422,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   verifyButtonActive: {
-    backgroundColor: '#7B8B55',
+    backgroundColor: '#FFB02E',
   },
   verifyButtonDisabled: {
-    backgroundColor: '#C2C6AF',
+    backgroundColor: '#ada291',
   },
   verifyButtonText: {
     color: '#FFFFFF',

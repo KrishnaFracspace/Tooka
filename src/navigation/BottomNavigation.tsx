@@ -1,3 +1,19 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// BottomNavigation
+//
+// Profile Tab Auth Gate:
+//  • While auth state is hydrating (loading=true) → show a centered spinner
+//    to prevent the Login ↔ Profile flicker during app startup.
+//  • When user is NOT authenticated → render LoginScreen inline inside the
+//    Profile tab (no navigation, no stack issues, no blank screens).
+//  • When user IS authenticated → render ProfileScreen.
+//
+// This approach avoids navigation loops and works correctly after:
+//  • OTP success from SpaDetails flow (Profile tab auto-reflects new auth state)
+//  • App restart with existing session (hydration restores ProfileScreen)
+//  • Logout (ProfileScreen swaps back to LoginScreen instantly)
+// ─────────────────────────────────────────────────────────────────────────────
+
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -7,6 +23,7 @@ import {
   Pressable,
   StyleSheet,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -16,6 +33,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import HomeScreen from '../screens/Home/HomeScreen';
 import AllBookingScreen from '../screens/Booking/AllBooking';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
+import LoginScreen from '../screens/Auth/Login';
+import { useAuth } from '../context/AuthContext';
 
 const Tab = createBottomTabNavigator();
 
@@ -24,6 +43,8 @@ const ICONS: Record<string, string> = {
   Bookings: 'calendar-outline',
   Profile: 'person-outline',
 };
+
+// ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 
 function CustomTabBar({
   state,
@@ -34,7 +55,6 @@ function CustomTabBar({
   const insets = useSafeAreaInsets();
 
   const containerWidth = width * 0.92;
-
   const tabCount = state.routes.length;
   const tabWidth = containerWidth / tabCount;
   const indicatorWidth = Math.max(80, tabWidth * 0.9);
@@ -67,7 +87,7 @@ function CustomTabBar({
               ? insets.bottom + 10
               : 20,
         },
-    ]}>
+      ]}>
       <View
         style={[
           styles.tabBackground,
@@ -122,9 +142,9 @@ function CustomTabBar({
               ]}>
               <View style={styles.tabInner}>
                 <Ionicons
-                    name={ICONS[label] || 'ellipse-outline'}
-                    size={22}
-                    color={isFocused ? '#FFF' : '#FFB02E'}
+                  name={ICONS[label] || 'ellipse-outline'}
+                  size={22}
+                  color={isFocused ? '#FFF' : '#FFB02E'}
                 />
                 {isFocused && (
                   <Text style={styles.activeLabel}>
@@ -139,6 +159,58 @@ function CustomTabBar({
     </View>
   );
 }
+
+function BookingTabScreen(): React.ReactElement {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FFB02E" />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    // Render LoginScreen in embedded mode — it hides the back button
+    // and does not attempt to navigate backwards.
+    return <LoginScreen isEmbedded />;
+  }
+
+  return <AllBookingScreen />;
+}
+
+// ─── Profile Tab Screen — Auth Gate ─────────────────────────────────────────
+
+/**
+ * Wraps the Profile tab content with an auth gate.
+ *
+ * States:
+ *  1. loading=true  → Spinner (prevents hydration flicker)
+ *  2. !isAuthenticated → LoginScreen in embedded mode (no back button)
+ *  3. isAuthenticated  → ProfileScreen with real user data
+ */
+function ProfileTabScreen(): React.ReactElement {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FFB02E" />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    // Render LoginScreen in embedded mode — it hides the back button
+    // and does not attempt to navigate backwards.
+    return <LoginScreen isEmbedded />;
+  }
+
+  return <ProfileScreen />;
+}
+
+// ─── Tab Navigator ────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -187,7 +259,8 @@ const styles = StyleSheet.create({
       width: 0,
       height: 4,
     },
-    alignItems:'center',justifyContent:'center',
+    alignItems: 'center',
+    justifyContent: 'center',
 
     elevation: 5,
   },
@@ -196,13 +269,13 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf:'center'
+    alignSelf: 'center',
   },
 
   tabInner: {
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf:'center'
+    alignSelf: 'center',
   },
 
   icon: {
@@ -224,6 +297,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFF',
   },
+
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#F6F1E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default function BottomNavigation() {
@@ -234,8 +314,8 @@ export default function BottomNavigation() {
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Bookings" component={AllBookingScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Bookings" component={BookingTabScreen} />
+      <Tab.Screen name="Profile" component={ProfileTabScreen} />
     </Tab.Navigator>
   );
 }

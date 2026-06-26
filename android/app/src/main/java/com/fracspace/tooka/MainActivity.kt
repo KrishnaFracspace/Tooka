@@ -1,4 +1,4 @@
-package com.tooka
+package com.fracspace.tooka
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

@@ -1,4 +1,4 @@
-package com.tooka
+package com.fracspace.tooka
 
 import android.app.Application
 import com.facebook.react.PackageList

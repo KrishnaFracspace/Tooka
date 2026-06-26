@@ -65,7 +65,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
   const statusLabel =
     status === 'upcoming' ? 'Confirmed' : status === 'completed' ? 'Completed' : 'Cancelled';
   const statusColor =
-    status === 'upcoming' ? '#7B8B55' : status === 'completed' ? '#2E8B57' : '#C85A54';
+    status === 'upcoming' ? '#FFB02E' : status === 'completed' ? '#2E8B57' : '#C85A54';
 
   return (
     <View style={[styles.bookingCard, style]}>
@@ -133,7 +133,7 @@ const AllBookingScreen: React.FC = () => {
       location: 'Banjara Hills, Hyderabad',
       service: 'Body Massage (60 mins)',
       people: '1 Person',
-      date: 'Today, 21 Jun',
+      date: '01 July',
       time: '12:00 PM',
       bookingId: 'TK987654',
       status: 'upcoming' as BookingStatus,
@@ -144,7 +144,7 @@ const AllBookingScreen: React.FC = () => {
       location: 'Banjara Hills, Hyderabad',
       service: 'Body Massage (60 mins)',
       people: '1 Person',
-      date: 'Today, 21 Jun',
+      date: '04 July',
       time: '12:00 PM',
       bookingId: 'TK987654',
       status: 'upcoming' as BookingStatus,
@@ -156,9 +156,9 @@ const AllBookingScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <Text style={styles.headerTitle}>All Bookings</Text>
-        </View>
+        </View> */}
 
         <View style={[styles.tabContainer, isTablet && styles.tabContainerTablet]}>
           <TabButton
@@ -227,12 +227,14 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingBottom: 120,
+    marginTop: 20,
   },
   header: {
     alignItems: 'center',
     paddingVertical: 24,
   },
   headerTitle: {
+    fontFamily: 'Sora-SemiBold',
     fontSize: 32,
     fontWeight: '800',
     color: '#1E1E1E',
@@ -242,7 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 28,
     padding: 8,
-    marginBottom: 28,
+    marginBottom: 18,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 12,
@@ -266,7 +268,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   tabButtonActive: {
-    backgroundColor: '#7B8B55',
+    backgroundColor: '#FFB02E',
   },
   tabText: {
     fontSize: 15,
@@ -277,10 +279,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   sectionHeader: {
-    marginBottom: 20,
+    marginBottom: 15,
   },
   sectionTitle: {
-    fontSize: 24,
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 16,
     fontWeight: '800',
     color: '#1E1E1E',
   },
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#7B8B55',
+    backgroundColor: '#FFB02E',
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 8,

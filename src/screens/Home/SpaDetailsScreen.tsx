@@ -1,36 +1,38 @@
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { JSX } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ScrollView,
-  View,
-  Text,
+  FlatList,
   Image,
   ImageBackground,
-  StyleSheet,
-  useWindowDimensions,
   Pressable,
-  ViewStyle,
-  StyleProp,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  type ListRenderItemInfo,
+  type ViewStyle,
+  type StyleProp,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { RootStackParamList } from '../../navigation/AppNavigator';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
+import OfferCard from '../../components/OfferCard';
+import { offer as offerData } from '../../data/homeData';
+import { useSpaDetails } from '../../hooks/useSpaDetails';
+import SpaDetailsSkeleton from '../../components/loaders/SpaDetailsSkeleton';
+import StateMessage from '../../components/common/StateMessage';
+import EnquiryModal from '../../components/EnquiryModal';
+import { useAuth } from '../../context/AuthContext';
+import { toSafeNumber, formatRating } from '../../utils/number';
+import type { SpaDetails, SpaService, SpaReview } from '../../types/spaDetails';
 
-const HERO_IMAGE = {
-  uri: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1000&q=60',
-};
-const SERVICE_IMAGE = {
-  uri: 'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=900&q=60',
-};
-const SERVICE_IMAGE_2 = {
-  uri: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=900&q=60',
-};
-const SERVICE_IMAGE_3 = {
-  uri: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=60',
-};
-const MAP_IMAGE = {
-  uri: 'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=60',
-};
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/1000x600';
+const DEFAULT_LOCATION = 'Hyderabad';
+const DEFAULT_RATING = 4.5;
+const DEFAULT_DESCRIPTION = 'Experience luxury wellness and rejuvenation.';
+const DEFAULT_NAME = 'Premium Wellness Spa';
 
 type BadgeChipProps = {
   label: string;
@@ -106,93 +108,291 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ author, when, rating, text, sty
 );
 
 type SpaDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SpaDetails'>;
+type SpaDetailsRouteProp = RouteProp<RootStackParamList, 'SpaDetails'>;
 
-function SpaDetailsScreen(): JSX.Element {
+type SpaServiceItem = SpaService;
+type SpaReviewItem = SpaReview;
+
+const mapAmenityChips = (spa: SpaDetails | null) => {
+  const chips: BadgeChipProps[] = [];
+  const profile = spa?.profile;
+
+  if (spa?.is_verified) {
+    chips.push({ icon: '✔️', label: 'Verified' });
+  }
+
+  if (profile?.has_steam_room) {
+    chips.push({ icon: '💨', label: 'Steam Room' });
+  }
+
+  if (profile?.has_jacuzzi) {
+    chips.push({ icon: '🛁', label: 'Jacuzzi' });
+  }
+
+  if (profile?.has_couple_room) {
+    chips.push({ icon: '❤️', label: 'Couple Room' });
+  }
+
+  if (profile?.has_sauna) {
+    chips.push({ icon: '🔥', label: 'Sauna' });
+  }
+
+  if (profile?.has_swimming_pool) {
+    chips.push({ icon: '🏊', label: 'Swimming Pool' });
+  }
+
+  return chips;
+};
+
+const formatReviewDate = (dateString: string | null) => {
+  if (!dateString) {
+    return 'Recently';
+  }
+
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Recently';
+  }
+
+  return date.toLocaleDateString();
+};
+
+function SpaDetailsScreen(): React.ReactElement {
   const navigation = useNavigation<SpaDetailsNavigationProp>();
+  const route = useRoute<SpaDetailsRouteProp>();
+  const { spaId, serviceId, serviceName, openEnquiry } = route.params;
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
+  const offer = offerData;
+  const { user, isAuthenticated } = useAuth();
+  const { spa, loading, refreshing, error, refetch, onRefresh } = useSpaDetails(spaId);
+
+  const [enquiryVisible, setEnquiryVisible] = useState(false);
+  const [selectedService, setSelectedService] = useState<{ id?: string; name?: string }>({
+    id: serviceId,
+    name: serviceName,
+  });
+
+  // Auto-open the enquiry modal when returning from the auth flow.
+  useEffect(() => {
+    if (openEnquiry) {
+      setSelectedService({ id: serviceId, name: serviceName });
+      setEnquiryVisible(true);
+      // Clear the flag so the modal does not reopen on re-render / refocus.
+      navigation.setParams({ openEnquiry: false });
+    }
+  }, [openEnquiry, serviceId, serviceName, navigation]);
+
+  const enquiryDefaults = useMemo(
+    () => ({
+      name: user?.userName ?? '',
+      email: user?.email ?? '',
+      message: '',
+    }),
+    [user?.userName, user?.email],
+  );
+
+  const handleSubmitEnquiry = useCallback(
+    (values: { name: string; email: string; message: string }) => {
+      const payload = {
+        spaId,
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        name: values.name,
+        email: values.email,
+        message: values.message,
+      };
+      // TODO: replace with submitEnquiry API call when backend is ready.
+      console.log('submitEnquiry', payload);
+      setEnquiryVisible(false);
+    },
+    [spaId, selectedService.id, selectedService.name],
+  );
+
+  const heroImage = useMemo(
+    () => ({ uri: spa?.cover_photo_url ?? PLACEHOLDER_IMAGE }),
+    [spa?.cover_photo_url],
+  );
+
+  const spaName = spa?.name ?? DEFAULT_NAME;
+  const spaRating = toSafeNumber(spa?.rating_google, DEFAULT_RATING);
+  const reviewSummary = `${toSafeNumber(spa?.review_count_google, 0)} reviews`;
+  const spaLocation = spa?.locality_name ?? spa?.city_name ?? DEFAULT_LOCATION;
+  const spaAddress = useMemo(() => {
+    const parts: string[] = [];
+    if (spa?.address_line1) parts.push(spa.address_line1);
+    if (spa?.address_line2) parts.push(spa.address_line2);
+    if (spa?.locality_name) parts.push(spa.locality_name);
+    if (spa?.city_name) parts.push(spa.city_name);
+    return parts.length ? parts.join(', ') : DEFAULT_LOCATION;
+  }, [spa?.address_line1, spa?.address_line2, spa?.locality_name, spa?.city_name]);
+  const spaDescription = spa?.tagline ?? spa?.description ?? spa?.editorial_summary ?? DEFAULT_DESCRIPTION;
+  const amenityChips = useMemo(() => mapAmenityChips(spa), [spa]);
+//   console.log("Servicess: ", spa?.services);
+
+  const services = useMemo(() => spa?.services ?? [], [spa?.services]);
+  const reviews = useMemo(() => spa?.reviews ?? [], [spa?.reviews]);
+
+  const handlePressService = useCallback(
+    (service: SpaServiceItem) => {
+      setSelectedService({ id: service.id, name: service.name });
+
+      if (isAuthenticated) {
+        setEnquiryVisible(true);
+        return;
+      }
+
+      navigation.navigate('Login', {
+        spaId,
+        serviceId: service.id,
+        serviceName: service.name,
+      });
+    },
+    [isAuthenticated, navigation, spaId],
+  );
+
+  const handleGetDirections = useCallback(() => {
+    // TODO: Implement map navigation using spa coordinates
+    if (__DEV__) {
+      console.log('Get directions for', spa?.lat, spa?.lng);
+    }
+  }, [spa?.lat, spa?.lng]);
+
+  const renderServiceItem = useCallback(
+    ({ item, index }: ListRenderItemInfo<SpaServiceItem>) => {
+      const durationText = item.duration_minutes != null ? `${item.duration_minutes} mins` : 'N/A';
+      const priceText = item.base_price ? `${item.currency ?? 'INR'} ${item.base_price}` : 'Contact for price';
+      const subtitleText = item.short_description ?? item.description ?? 'No description available';
+
+      return (
+        <ServiceCard
+          key={item.id}
+          imageSource={{ uri: item.cover_image_url ?? PLACEHOLDER_IMAGE }}
+          title={item.name}
+          duration={durationText}
+          subtitle={subtitleText}
+          price={priceText}
+          style={index > 0 ? styles.serviceCardSpacing : undefined}
+          onPress={() => handlePressService(item)}
+        />
+      );
+    },
+    [handlePressService],
+  );
+
+  const renderReviewItem = useCallback(
+    ({ item, index }: ListRenderItemInfo<SpaReviewItem>) => (
+      <ReviewCard
+        key={item.id}
+        author={item.reviewer_name ?? 'Guest'}
+        when={formatReviewDate(item.created_at)}
+        rating={formatRating(item.rating, DEFAULT_RATING)}
+        text={item.comment ?? 'No comment available.'}
+        style={[styles.reviewCardFlex, isTablet && index === 1 && styles.reviewCardMargin]}
+      />
+    ),
+    [isTablet],
+  );
+
+  if (loading && spa === null) {
+    return <SpaDetailsSkeleton />;
+  }
+
+  if (error && spa === null) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StateMessage
+          title="Something went wrong"
+          subtitle="Unable to load spa details."
+          actionLabel="Try Again"
+          onAction={refetch}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (!spa) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StateMessage
+          title="Spa details not available."
+          subtitle="Please try again."
+          actionLabel="Retry"
+          onAction={refetch}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <ImageBackground source={HERO_IMAGE} style={styles.heroImageBackground} imageStyle={styles.heroImageStyle}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <ImageBackground source={heroImage} style={styles.heroImageBackground} imageStyle={styles.heroImageStyle}>
           <View style={styles.heroOverlay} />
           <View style={styles.heroTopRow}>
-            <View style={styles.heroBadge}> 
-              <Text style={styles.heroBadgeText}>4.8</Text>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>{spaRating.toFixed(1)}</Text>
             </View>
             <Pressable style={styles.heroHeart}>
               <Text style={styles.heroHeartText}>♡</Text>
             </Pressable>
           </View>
           <View style={styles.heroTextArea}>
-            <Text style={styles.heroHeadline}>Tiamoz Salon & Spa</Text>
+            <Text style={styles.heroHeadline}>{spaName}</Text>
             <View style={styles.heroMetaRow}>
-              <Text style={styles.heroMeta}>⭐ 4.8 (2.4K)</Text>
-              <Text style={styles.heroMeta}>A premium wellness destination offering Thai therapies, deep tissue massages, aromatherapy & luxury relaxation experiences.</Text>
+              <Text style={styles.heroMeta}>⭐ {spaRating.toFixed(1)} ({reviewSummary})</Text>
+              <Text style={styles.heroMeta}>{spaDescription}</Text>
             </View>
           </View>
         </ImageBackground>
 
-        <View style={[styles.section, isTablet && styles.sectionRow]}> 
-          <BadgeChip icon="🏅" label="Premium" />
-          <BadgeChip icon="✔️" label="Certified" />
-          <BadgeChip icon="🛡️" label="Hygiene" />
-          <BadgeChip icon="⭐" label="Top Rated" />
+        <View style={[styles.section, isTablet && styles.sectionRow]}>
+          {amenityChips.map((item) => (
+            <BadgeChip key={item.label} icon={item.icon} label={item.label} />
+          ))}
         </View>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Popular Services</Text>
         </View>
 
-        <ServiceCard
-          imageSource={SERVICE_IMAGE}
-          title="Body Massage"
-          duration="40 mins"
-          subtitle="Relieves muscle tension and chronic stress"
-          price="₹1,499"
-          onPress={() => navigation.navigate('Login')}
-        />
-        <ServiceCard
-          imageSource={SERVICE_IMAGE_2}
-          title="Thai Massage"
-          duration="60 mins"
-          subtitle="Relieves muscle tension and chronic stress"
-          price="₹1,799"
-          style={styles.serviceCardSpacing}
-          onPress={() => navigation.navigate('Login')}
-        />
-        <ServiceCard
-          imageSource={SERVICE_IMAGE_3}
-          title="Swedish Massage"
-          duration="75 mins"
-          subtitle="Relieves muscle tension and chronic stress"
-          price="₹1,699"
-          style={styles.serviceCardSpacing}
-          onPress={() => navigation.navigate('Login')}
-        />
+        {services.length === 0 ? (
+          <Text style={styles.emptyText}>No services available.</Text>
+        ) : (
+          <FlatList<SpaServiceItem>
+            data={services}
+            keyExtractor={(item) => item.id}
+            renderItem={renderServiceItem}
+            scrollEnabled={false}
+            ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+            removeClippedSubviews
+          />
+        )}
 
-        <View style={[styles.sectionHeader, styles.reviewSectionHeader]}> 
+        <View style={[styles.sectionHeader, styles.reviewSectionHeader]}>
           <Text style={styles.sectionTitle}>What Guests Say</Text>
-          <Text style={styles.reviewSummary}>4.8 (2.4K)</Text>
+          <Text style={styles.reviewSummary}>{reviewSummary}</Text>
         </View>
 
-        <View style={[styles.reviewRow, isTablet && styles.reviewRowTablet]}>
-          <ReviewCard
-            author="Dhruv"
-            when="2 days ago"
-            rating="5.0"
-            text="The therapists were professional & ambience was incredibly relaxing. Will definitely come back!"
-            style={styles.reviewCardFlex}
+        {reviews.length === 0 ? (
+          <Text style={styles.emptyText}>No reviews available yet.</Text>
+        ) : (
+          <FlatList<SpaReviewItem>
+            data={reviews}
+            keyExtractor={(item) => item.id}
+            renderItem={renderReviewItem}
+            scrollEnabled={false}
+            numColumns={isTablet ? 2 : 1}
+            columnWrapperStyle={isTablet ? styles.reviewRowTablet : undefined}
+            ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+            removeClippedSubviews
           />
-          <ReviewCard
-            author="Darsh"
-            when="1 week ago"
-            rating="4.9"
-            text="The therapists were professional & ambience was incredibly relaxing. Will definitely come back!"
-            style={[styles.reviewCardFlex, isTablet && styles.reviewCardMargin]}
-          />
-        </View>
+        )}
 
         <Pressable style={styles.viewAllReviewsButton}>
           <Text style={styles.viewAllReviewsText}>View All Reviews</Text>
@@ -200,20 +400,20 @@ function SpaDetailsScreen(): JSX.Element {
 
         <Text style={styles.sectionTitle}>Location</Text>
         <View style={styles.mapCard}>
-          <Image source={MAP_IMAGE} style={styles.mapImage} resizeMode="cover" />
+          <Image source={{ uri: spa.cover_photo_url ?? PLACEHOLDER_IMAGE }} style={styles.mapImage} resizeMode="cover" />
           <View style={styles.mapOverlay} />
           <View style={styles.mapPinContainer}>
-            <Text style={styles.mapPinText}>⭐ 4.8</Text>
+            <Text style={styles.mapPinText}>⭐ {spaRating.toFixed(1)}</Text>
           </View>
         </View>
 
         <View style={styles.locationDetails}>
           <View>
-            <Text style={styles.locationName}>Tiamoz Salon & Spa</Text>
-            <Text style={styles.locationAddress}>Road number 12, MLA colony, Banjara Hills, Hyderabad</Text>
+            <Text style={styles.locationName}>{spaName}</Text>
+            <Text style={styles.locationAddress}>{spaAddress}</Text>
           </View>
           <View style={[styles.locationActionRow, isTablet && styles.locationActionRowTablet]}>
-            <Pressable style={styles.directionButton}>
+            <Pressable style={styles.directionButton} onPress={handleGetDirections}>
               <Text style={styles.directionButtonText}>Get Directions</Text>
             </Pressable>
             <Pressable style={styles.outlineButton}>
@@ -222,16 +422,12 @@ function SpaDetailsScreen(): JSX.Element {
           </View>
         </View>
 
-        <View style={styles.offerCard}>
-          <View>
-            <Text style={styles.offerLabel}>Limited time</Text>
-            <Text style={styles.offerTitle}>Take a break today.</Text>
-            <Text style={styles.offerSubtitle}>20% off at your favourite spa.</Text>
-          </View>
-          <Pressable style={styles.offerButton}>
-            <Text style={styles.offerButtonText}>Claim Now</Text>
-          </Pressable>
-        </View>
+        <OfferCard
+          item={offer}
+          onPress={() => {
+            // TODO: Add offer action
+          }}
+        />
 
         <View style={[styles.bookNowRow, isTablet && styles.bookNowRowTablet]}>
           <View>
@@ -243,9 +439,16 @@ function SpaDetailsScreen(): JSX.Element {
           </Pressable>
         </View>
       </ScrollView>
+
+      <EnquiryModal
+        visible={enquiryVisible}
+        onClose={() => setEnquiryVisible(false)}
+        onSubmit={handleSubmitEnquiry}
+        defaultValues={enquiryDefaults}
+      />
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -322,7 +525,6 @@ const styles = StyleSheet.create({
   },
   section: {
     flexDirection: 'row',
-    // flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 24,
   },
@@ -418,7 +620,7 @@ const styles = StyleSheet.create({
     color: '#212121',
   },
   bookButton: {
-    backgroundColor: '#7B8B55',
+    backgroundColor: '#FFB02E',
     borderRadius: 16,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -443,6 +645,7 @@ const styles = StyleSheet.create({
   },
   reviewRowTablet: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   reviewCard: {
     flex: 1,
@@ -563,7 +766,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   directionButton: {
-    backgroundColor: '#7B8B55',
+    backgroundColor: '#FFB02E',
     borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -646,7 +849,7 @@ const styles = StyleSheet.create({
     color: '#1E1E1E',
   },
   bookNowAction: {
-    backgroundColor: '#7B8B55',
+    backgroundColor: '#FFB02E',
     borderRadius: 18,
     paddingVertical: 18,
     paddingHorizontal: 32,
@@ -655,6 +858,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 16,
+  },
+  listSeparator: {
+    height: 0,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#7A7A7A',
+    marginBottom: 16,
   },
 });
 

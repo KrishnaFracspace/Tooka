@@ -5,19 +5,44 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/Home/HomeScreen';
 import SpaDetailsScreen from '../screens/Home/SpaDetailsScreen';
 import AllBookingScreen from '../screens/Booking/AllBooking';
-import ProfileScreen from '../screens/Profile/ProfileScreen';
 import BottomNavigation from './BottomNavigation';
 import LoginScreen from '../screens/Auth/Login';
 import OtpScreen from '../screens/Auth/Otp';
+import SplashScreen from '../screens/Splash/SplashScreen';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RootStackParamList — single source of navigation type truth.
+//
+// IMPORTANT: ProfileScreen is NOT registered here. It lives exclusively
+// inside BottomNavigation's tab stack and is reached via the Profile tab,
+// never via stack navigation.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type RootStackParamList = {
-  Home: undefined;
-  SpaDetails: undefined;
-  AllBooking: undefined;
-  ProfileScreen: undefined;
+  Splash: undefined;
   BottomNavigation: undefined;
-  Login: undefined;
-  Otp: undefined
+  Home: undefined;
+  SpaDetails: {
+    spaId: string;
+    serviceId?: string;
+    serviceName?: string;
+    openEnquiry?: boolean;
+  };
+  AllBooking: undefined;
+  Login: { spaId?: string; serviceId?: string; serviceName?: string } | undefined;
+  Otp: {
+    phoneNumber: string;
+    spaId?: string;
+    serviceId?: string;
+    serviceName?: string;
+    /**
+     * True when the OTP flow was initiated from the Profile tab's embedded
+     * LoginScreen (not from a SpaDetails booking flow).
+     * After OTP success in this case, we navigate to BottomNavigation
+     * instead of SpaDetails or goBack().
+     */
+    isFromProfileTab?: boolean;
+  } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -26,10 +51,15 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="BottomNavigation"
+        initialRouteName="Splash"
         screenOptions={{
           headerShown: false,
         }}>
+
+        <Stack.Screen
+            name="Splash"
+            component={SplashScreen}
+        />
 
         <Stack.Screen
           name="BottomNavigation"
@@ -61,10 +91,6 @@ const AppNavigator = () => {
             component={AllBookingScreen}
         />
 
-        <Stack.Screen
-            name="ProfileScreen"
-            component={ProfileScreen}
-        />
       </Stack.Navigator>
     </NavigationContainer>
   );

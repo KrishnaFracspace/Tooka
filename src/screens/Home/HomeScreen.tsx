@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
   FlatList,
-  Pressable,
   Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
   useWindowDimensions,
+  View,
+  type ListRenderItemInfo,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -20,18 +22,14 @@ import CategoryCard from '../../components/CategoryCard';
 import FeaturedSpaCard from '../../components/FeaturedSpaCard';
 import NearbySpaCard from '../../components/NearbySpaCard';
 import OfferCard from '../../components/OfferCard';
-import BannerCarousel from '../../components/BannerCarousel';
 import WellnessCard from '../../components/WellnessCard';
-import {
-  categories as categoriesData,
-  featuredSpas as featuredSpasData,
-  nearbySpas as nearbySpasData,
-  wellnessMoments as wellnessMomentsData,
-  banners as bannersData,
-  offer as offerData,
-  wellnessInsight as wellnessInsightData,
-} from '../../data/homeData';
+import { categories as categoriesData, nearbySpas as nearbySpasData, wellnessMoments as wellnessMomentsData, offer as offerData, wellnessInsight as wellnessInsightData, } from '../../data/homeData';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSpaDiscovery } from '../../hooks/useSpaDiscovery';
+import FullScreenLoader from '../../components/loaders/FullScreenLoader';
+import StateMessage from '../../components/common/StateMessage';
+
+import type { Spa } from '../../types/spa';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -51,9 +49,9 @@ interface FeaturedSpaItem {
   reviews: string;
   price: string;
   oldPrice?: string;
-  badge?: string;
+  badge: string;
   image: string;
-  favorite?: boolean;
+  favorite: boolean;
 }
 
 interface NearbySpaItem {
@@ -63,14 +61,6 @@ interface NearbySpaItem {
   typeA: string;
   typeB: string;
   rating: string;
-  image: string;
-}
-
-interface BannerItem {
-  id: string;
-  label: string;
-  title: string;
-  description: string;
   image: string;
 }
 
@@ -97,6 +87,16 @@ interface WellnessInsightItem {
   image: string;
 }
 
+const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/300';
+const DEFAULT_LOCATION = 'Hyderabad';
+const DEFAULT_RATING = 4.5;
+const DEFAULT_BADGE = 'Premium';
+const DEFAULT_PRICE = '₹1,499';
+const DEFAULT_DISTANCE = '1.2 km';
+
+const FEATURED_CARD_WIDTH = 250;
+const FEATURED_CARD_MARGIN = 16;
+
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { width } = useWindowDimensions();
@@ -105,21 +105,102 @@ const HomeScreen: React.FC = () => {
   const isTablet = width >= 768;
 
   const categories = categoriesData as CategoryItem[];
-  const featuredSpas = featuredSpasData as FeaturedSpaItem[];
   const nearbySpas = nearbySpasData as NearbySpaItem[];
   const wellnessMoments = wellnessMomentsData as WellnessMomentItem[];
-  const banners = bannersData as BannerItem[];
   const offer = offerData as OfferItem;
   const wellnessInsight = wellnessInsightData as WellnessInsightItem;
 
-  const handlePressSpaCard = (): void => navigation.navigate('SpaDetails');
-  const handlePressCategory = (id: string): void => setSelectedCategory(id);
+  const { spas, loading, error, refreshing, refetch, onRefresh } = useSpaDiscovery('Hyderabad');
+
+  const featuredSpas = useMemo<FeaturedSpaItem[]>(
+    () =>
+      spas.map((spa) => ({
+        id: spa.id,
+        name: spa.name ?? 'Untitled Spa',
+        location: spa.city_name ?? DEFAULT_LOCATION,
+        distance: DEFAULT_DISTANCE,
+        rating: String(spa.rating_google ?? DEFAULT_RATING),
+        reviews: `${spa.review_count_google ?? 0} reviews`,
+        price: DEFAULT_PRICE,
+        oldPrice: '',
+        badge: DEFAULT_BADGE,
+        image: spa.cover_photo_url ?? PLACEHOLDER_IMAGE,
+        favorite: false,
+      })),
+    [spas],
+  );
+
+  const handlePressSpaCard = useCallback(
+    (spaId: string) => {
+      navigation.navigate('SpaDetails', { spaId });
+    },
+    [navigation],
+  );
+
+  const handlePressCategory = useCallback((id: string) => setSelectedCategory(id), []);
+
+  const handleFavoritePress = useCallback(() => undefined, []);
+
+  const renderCategoryItem = useCallback(
+    ({ item }: ListRenderItemInfo<CategoryItem>) => (
+      <CategoryCard
+        icon={item.icon}
+        label={item.label}
+        selected={item.id === selectedCategory}
+        onPress={() => handlePressCategory(item.id)}
+      />
+    ),
+    [handlePressCategory, selectedCategory],
+  );
+
+  const renderFeaturedSpaItem = useCallback(
+    ({ item }: ListRenderItemInfo<FeaturedSpaItem>) => (
+      <FeaturedSpaCard
+        item={item}
+        onPress={() => handlePressSpaCard(item.id)}
+        onPressFavorite={handleFavoritePress}
+      />
+    ),
+    [handleFavoritePress, handlePressSpaCard],
+  );
+
+  const renderNearbySpaItem = useCallback(
+    ({ item }: ListRenderItemInfo<NearbySpaItem>) => (
+      <NearbySpaCard item={item} onPress={() => handlePressSpaCard(item.id)} />
+    ),
+    [handlePressSpaCard],
+  );
+
+  const renderListSeparator = useCallback(
+    () => <View style={styles.listSeparator} />,
+    [],
+  );
+
+  const getFeaturedSpaItemLayout = useCallback(
+    (_: ArrayLike<FeaturedSpaItem> | null | undefined, index: number) => ({
+      length: FEATURED_CARD_WIDTH + FEATURED_CARD_MARGIN,
+      offset: (FEATURED_CARD_WIDTH + FEATURED_CARD_MARGIN) * index,
+      index,
+    }),
+    [],
+  );
+
+  const shouldRenderEmptyState = !loading && !error && featuredSpas.length === 0;
+
+  if (loading && spas.length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <FullScreenLoader />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={[styles.content, isTablet && styles.contentTablet]}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <Header
           location="Banjara Hills"
@@ -145,34 +226,17 @@ const HomeScreen: React.FC = () => {
           }}
         />
 
-        {/* <BannerCarousel
-          banners={banners}
-          onPress={() => {
-            // TODO: Add banner navigation
-          }}
-        /> */}
-
-        {/* <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Spa categories</Text>
-          <Pressable onPress={() => {}}>
-            <Text style={styles.sectionAction}>View All</Text>
-          </Pressable>
-        </View> */}
-
         <FlatList<CategoryItem>
           data={categories}
           horizontal
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.categoriesList}
-          renderItem={({ item }) => (
-            <CategoryCard
-              icon={item.icon}
-              label={item.label}
-              selected={item.id === selectedCategory}
-              onPress={() => handlePressCategory(item.id)}
-            />
-          )}
+          initialNumToRender={4}
+          maxToRenderPerBatch={4}
+          windowSize={3}
+          removeClippedSubviews
+          renderItem={renderCategoryItem}
         />
 
         <View style={styles.sectionHeader}>
@@ -182,22 +246,35 @@ const HomeScreen: React.FC = () => {
           </Pressable>
         </View>
 
-        <FlatList<FeaturedSpaItem>
-          data={featuredSpas}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.featuredList}
-          renderItem={({ item }) => (
-            <FeaturedSpaCard
-              item={item}
-              onPress={handlePressSpaCard}
-              onPressFavorite={() => {
-                // TODO: Handle favorite toggle
-              }}
-            />
-          )}
-        />
+        {error && spas.length === 0 ? (
+          <StateMessage
+            title="Something went wrong."
+            subtitle="Please try again."
+            actionLabel="Retry"
+            onAction={refetch}
+          />
+        ) : shouldRenderEmptyState ? (
+          <StateMessage
+            title="No spas available in this location."
+            subtitle="Try a different city or refresh the list."
+            actionLabel="Retry"
+            onAction={refetch}
+          />
+        ) : (
+          <FlatList<FeaturedSpaItem>
+            data={featuredSpas}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.featuredList}
+            initialNumToRender={3}
+            maxToRenderPerBatch={4}
+            windowSize={5}
+            removeClippedSubviews
+            renderItem={renderFeaturedSpaItem}
+            getItemLayout={getFeaturedSpaItemLayout}
+          />
+        )}
 
         <View style={styles.nearbySection}>
           <View style={styles.sectionHeader}>
@@ -234,9 +311,13 @@ const HomeScreen: React.FC = () => {
         <FlatList<NearbySpaItem>
           data={nearbySpas}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <NearbySpaCard item={item} onPress={handlePressSpaCard} />}
+          renderItem={renderNearbySpaItem}
           scrollEnabled={false}
-          ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+          ItemSeparatorComponent={renderListSeparator}
+          initialNumToRender={3}
+          maxToRenderPerBatch={4}
+          windowSize={5}
+          removeClippedSubviews
         />
 
         <OfferCard
@@ -254,9 +335,11 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.wellnessRow}>
-          {wellnessMoments.map((item) => (
-            <WellnessCard key={item.id} item={item} onPress={() => {}} />
-          ))}
+            <ScrollView horizontal style={{flexDirection:'row',gap:10}}>
+                {wellnessMoments.map((item) => (
+                    <WellnessCard key={item.id} item={item} onPress={() => {}} />
+                ))}
+          </ScrollView>
         </View>
 
         <Pressable style={styles.insightCard} onPress={() => {}}>
