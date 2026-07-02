@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,10 +9,8 @@ import BootSplash from 'react-native-bootsplash';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 
-type RootStackParamList = {
-  Splash: undefined;
-  BottomNavigation: undefined;
-};
+import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { getOnboarding } from '../../utils/onboardingStorage';
 
 type SplashScreenNavigationProp =
   NativeStackNavigationProp<
@@ -20,27 +18,48 @@ type SplashScreenNavigationProp =
     'Splash'
   >;
 
+const SPLASH_FALLBACK_TIMEOUT_MS = 5000;
+
 const SplashScreen: React.FC = () => {
   const navigation =
     useNavigation<SplashScreenNavigationProp>();
 
   const hasNavigated = useRef(false);
 
-  useEffect(() => {
-    BootSplash.hide({
-      fade: true,
-    });
-  }, []);
-
-  const navigateToApp = () => {
+  const navigateToApp = useCallback(async () => {
     if (hasNavigated.current) {
       return;
     }
 
     hasNavigated.current = true;
 
-    navigation.replace('BottomNavigation');
-  };
+    try {
+      const onboarding = await getOnboarding();
+      if (onboarding && onboarding.completed) {
+        navigation.replace('BottomNavigation');
+      } else {
+        navigation.replace('Onboarding');
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('Splash onboarding check failed:', error);
+      }
+      navigation.replace('Onboarding');
+    }
+  }, [navigation]);
+
+  useEffect(() => {
+    BootSplash.hide({
+      fade: true,
+    });
+
+    const fallbackTimer = setTimeout(
+      navigateToApp,
+      SPLASH_FALLBACK_TIMEOUT_MS,
+    );
+
+    return () => clearTimeout(fallbackTimer);
+  }, [navigateToApp]);
 
   return (
     <View style={styles.container}>
@@ -58,6 +77,15 @@ const SplashScreen: React.FC = () => {
         muted={false}
         playInBackground={false}
         playWhenInactive={false}
+        preventsDisplaySleepDuringVideoPlayback={false}
+        hideShutterView
+        minLoadRetryCount={0}
+        bufferConfig={{
+          minBufferMs: 500,
+          maxBufferMs: 1500,
+          bufferForPlaybackMs: 250,
+          bufferForPlaybackAfterRebufferMs: 500,
+        }}
         ignoreSilentSwitch="ignore"
         onEnd={navigateToApp}
         onError={(error) => {

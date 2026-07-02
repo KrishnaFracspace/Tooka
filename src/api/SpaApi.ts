@@ -35,9 +35,12 @@ export const SpaApi = {
   /**
    * Get spa details
    */
-  getSpaDetails: async (spaId: string): Promise<SpaDetails> => {
+  getSpaDetails: async (spaId: string, signal?: AbortSignal): Promise<SpaDetails> => {
     const response = await axiosClient.get<ApiResponse<SpaDetails>>(
       `/spa/spas/${spaId}`,
+      {
+        signal,
+      },
     );
 
     return response.data?.data ?? ({} as SpaDetails);
@@ -49,14 +52,20 @@ export const SpaApi = {
   getNearbySpas: async (
     lat: number,
     lng: number,
+    page?: number,
+    limit?: number,
+    cancelToken?: any,
   ) => {
     const response = await axiosClient.get(
-      '/spa/spas',
+      '/spa/spas/discover',
       {
         params: {
           lat,
           lng,
+          page,
+          limit,
         },
+        cancelToken,
       },
     );
 

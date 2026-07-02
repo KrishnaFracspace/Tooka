@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import HomeScreen from '../screens/Home/HomeScreen';
+import ExploreScreen from '../screens/Explore/ExploreScreen';
 import AllBookingScreen from '../screens/Booking/AllBooking';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import LoginScreen from '../screens/Auth/Login';
@@ -40,6 +41,7 @@ const Tab = createBottomTabNavigator();
 
 const ICONS: Record<string, string> = {
   Home: 'home-outline',
+  Explore: 'map-outline',
   Bookings: 'calendar-outline',
   Profile: 'person-outline',
 };
@@ -53,6 +55,8 @@ function CustomTabBar({
 }: BottomTabBarProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const currentRoute = state.routes[state.index].name;
+  const hideTabBar = currentRoute === 'Explore';
 
   const containerWidth = width * 0.92;
   const tabCount = state.routes.length;
@@ -75,6 +79,10 @@ function CustomTabBar({
       bounciness: 8,
     }).start();
   }, [state.index, tabWidth, indicatorWidth]);
+
+  if (hideTabBar) {
+    return null;
+  }
 
   return (
     <View
@@ -314,6 +322,7 @@ export default function BottomNavigation() {
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Explore" component={ExploreScreen} />
       <Tab.Screen name="Bookings" component={BookingTabScreen} />
       <Tab.Screen name="Profile" component={ProfileTabScreen} />
     </Tab.Navigator>

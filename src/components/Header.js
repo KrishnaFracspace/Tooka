@@ -1,22 +1,26 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image, Dimensions, Platform } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const Header = ({ location, onPressLocation, onPressNotification }) => {
+  const {width, height} = Dimensions.get("window");
   return (
     <View style={styles.header}>
       <View style={styles.brandColumn}>
-        <Text style={styles.brandText}>Tooka</Text>
-        <Text style={styles.brandSubText}>Spa · Salons · Fitness · Wellness</Text>
+        {/* <Text style={styles.brandText}>Tooka</Text>
+        <Text style={styles.brandSubText}>Spa · Salons · Fitness · Wellness</Text> */}
+        <Image resizeMode='contain' source={{uri:'https://d2f15ematxpwp4.cloudfront.net/appImages/Tooka_Logo.png'}}
+          style={{width: width*0.3, height:Platform.OS == 'android' ? 60 : 80}}
+        />
       </View>
       <View style={styles.actionRow}>
         <Pressable style={styles.locationButton} onPress={onPressLocation}>
           <Ionicons name="location-sharp" size={16} color="#3C3C3C" />
           <Text style={styles.locationText}>{location}</Text>
         </Pressable>
-        <Pressable style={styles.notificationButton} onPress={onPressNotification}>
+        {/* <Pressable style={styles.notificationButton} onPress={onPressNotification}>
           <Ionicons name="notifications-outline" size={22} color="#3C3C3C" />
-        </Pressable>
+        </Pressable> */}
       </View>
     </View>
   );
@@ -27,7 +31,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 0,
   },
   brandColumn: {
     flex: 1,

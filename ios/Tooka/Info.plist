@@ -33,8 +33,13 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- <key>NSLocationWhenInUseUsageDescription</key>
+	<string/> -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string/>
+	<string>We use your location to show nearby spas.</string>
+
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We use your location to show nearby spas.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

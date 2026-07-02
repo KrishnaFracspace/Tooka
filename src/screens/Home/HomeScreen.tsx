@@ -9,12 +9,20 @@ import {
   Text,
   useWindowDimensions,
   View,
+  ActivityIndicator,
   type ListRenderItemInfo,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+
+import MapView, { Marker } from 'react-native-maps';
+// import { useNavigation } from '@react-navigation/native';
+// import Ionicons from 'react-native-vector-icons/Ionicons';
+
+// import { useNearbySpa } from '../../context/NearbySpaContext';
+// import { useLocation } from '../../context/LocationContext';
 
 import Header from '../../components/Header';
 import SearchBar from '../../components/SearchBar';
@@ -23,9 +31,11 @@ import FeaturedSpaCard from '../../components/FeaturedSpaCard';
 import NearbySpaCard from '../../components/NearbySpaCard';
 import OfferCard from '../../components/OfferCard';
 import WellnessCard from '../../components/WellnessCard';
-import { categories as categoriesData, nearbySpas as nearbySpasData, wellnessMoments as wellnessMomentsData, offer as offerData, wellnessInsight as wellnessInsightData, } from '../../data/homeData';
+import { categories as categoriesData, wellnessMoments as wellnessMomentsData, offer as offerData, wellnessInsight as wellnessInsightData, } from '../../data/homeData';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSpaDiscovery } from '../../hooks/useSpaDiscovery';
+import { useLocation } from '../../context/LocationContext';
+import { useNearbySpas } from '../../context/NearbySpaContext';
 import FullScreenLoader from '../../components/loaders/FullScreenLoader';
 import StateMessage from '../../components/common/StateMessage';
 
@@ -62,6 +72,8 @@ interface NearbySpaItem {
   typeB: string;
   rating: string;
   image: string;
+  latitude: number;
+  longitude: number
 }
 
 interface OfferItem {
@@ -105,7 +117,38 @@ const HomeScreen: React.FC = () => {
   const isTablet = width >= 768;
 
   const categories = categoriesData as CategoryItem[];
-  const nearbySpas = nearbySpasData as NearbySpaItem[];
+  const { location } = useLocation();
+  const {
+    spas: contextSpas,
+    loading: contextLoading,
+    refreshing: contextRefreshing,
+    refresh: contextRefresh,
+    error: contextError,
+  } = useNearbySpas();
+
+  const nearbySpas = useMemo<NearbySpaItem[]>(
+    () =>
+      contextSpas.map((s) => ({
+        id: s.id,
+        name: s.name,
+        subtitle: s.subtitle,
+        typeA: s.typeA,
+        typeB: s.typeB,
+        rating: s.rating.toFixed(1),
+        image: s.image,
+        latitude: s.latitude,
+        longitude: s.longitude,
+      })),
+    [contextSpas],
+  );
+
+//   const navigation = useNavigation();
+
+// const { spas } = useNearbySpa();
+// const { location } = useLocation();
+
+
+
   const wellnessMoments = wellnessMomentsData as WellnessMomentItem[];
   const offer = offerData as OfferItem;
   const wellnessInsight = wellnessInsightData as WellnessInsightItem;
@@ -129,6 +172,11 @@ const HomeScreen: React.FC = () => {
       })),
     [spas],
   );
+
+  const previewSpas = useMemo(() => {
+    return nearbySpas.slice(0, 4);
+  }, [nearbySpas]);
+  console.log("Preview Spa: ", previewSpas);
 
   const handlePressSpaCard = useCallback(
     (spaId: string) => {
@@ -185,22 +233,49 @@ const HomeScreen: React.FC = () => {
     [],
   );
 
-  const shouldRenderEmptyState = !loading && !error && featuredSpas.length === 0;
+  const isRefreshing = refreshing || contextRefreshing;
+  const { loadNextPage, loadingMore, retry } = useNearbySpas();
 
-  if (loading && spas.length === 0) {
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      onRefresh(),
+      contextRefresh().catch(() => {}),
+    ]);
+  }, [onRefresh, contextRefresh]);
+
+  // const handleScroll = useCallback(
+  //   ({ nativeEvent }: any) => {
+  //     const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+  //     const isCloseToBottom =
+  //       layoutMeasurement.height + contentOffset.y >= contentSize.height - 150;
+
+  //     if (isCloseToBottom) {
+  //       loadNextPage();
+  //     }
+  //   },
+  //   [loadNextPage],
+  // );
+
+  const isInitialLoading = (loading && spas.length === 0) ||
+    (contextLoading && contextSpas.length === 0 && location?.permission === 'granted');
+
+  if (isInitialLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <FullScreenLoader />
       </SafeAreaView>
     );
   }
+  const shouldRenderEmptyState = !loading && !error && featuredSpas.length === 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={[styles.content, isTablet && styles.contentTablet]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+        // onScroll={handleScroll}
+        // scrollEventThrottle={16}
       >
         <Header
           location="Banjara Hills"
@@ -276,7 +351,7 @@ const HomeScreen: React.FC = () => {
           />
         )}
 
-        <View style={styles.nearbySection}>
+        {/* <View style={styles.nearbySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Explore Nearby</Text>
             <Pressable onPress={() => {}}>
@@ -299,6 +374,104 @@ const HomeScreen: React.FC = () => {
               <Text style={styles.mapSubtitle}>Find the best spas around your current area.</Text>
             </View>
           </Pressable>
+        </View> */}
+
+        <View style={styles.nearbySection}>
+
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                    Explore Nearby
+                </Text>
+
+                <Pressable
+                    onPress={() =>
+                        navigation.navigate('Explore')
+                    }>
+                    <Text style={styles.sectionAction}>
+                        View Map
+                    </Text>
+                </Pressable>
+            </View>
+
+            <Pressable
+                // activeOpacity={0.9}
+                style={styles.mapCard}
+                onPress={() =>
+                    navigation.navigate('Explore')
+                }>
+
+                <View style={styles.mapContainer}>
+
+                    <MapView
+                        style={styles.map}
+                        pointerEvents="none"
+                        scrollEnabled={false}
+                        zoomEnabled={false}
+                        rotateEnabled={false}
+                        pitchEnabled={false}
+                        toolbarEnabled={false}
+                        loadingEnabled
+                        initialRegion={{
+                            latitude:
+                                location?.latitude ??
+                                17.41217,
+                            longitude:
+                                location?.longitude ??
+                                78.42293,
+                            latitudeDelta: 0.01,
+                            longitudeDelta: 0.01,
+                        }}>
+
+                        {location?.latitude != null && location?.longitude != null && (
+                          <Marker
+                            coordinate={{
+                              latitude: location.latitude,
+                              longitude: location.longitude,
+                            }}>
+                            <View style={styles.userDot} />
+                          </Marker>
+                        )}
+
+                        {previewSpas.map(spa => {
+                          // console.log('Spa marker: ', spa.name, spa.lat, spa.lng);
+                          return (
+                            <Marker
+                                key={spa.id}
+                                coordinate={{
+                                    latitude: Number(spa.latitude),
+                                    longitude: Number(spa.longitude),
+                                }}>
+                                <View style={styles.marker} />
+                            </Marker>
+                        )})}
+                    </MapView>
+
+                </View>
+
+                <View style={styles.rightContainer}>
+
+                    <Ionicons
+                        name="flower-outline"
+                        size={20}
+                        color="#F6A623"
+                    />
+
+                    <Text style={styles.rightTitle}>
+                        Many top-rated spas around you
+                    </Text>
+
+                    <View style={styles.button}>
+
+                        <Text style={styles.buttonText}>
+                            Explore Nearby
+                        </Text>
+
+                    </View>
+
+                </View>
+
+            </Pressable>
+
         </View>
 
         <View style={styles.sectionHeader}>
@@ -319,6 +492,47 @@ const HomeScreen: React.FC = () => {
           windowSize={5}
           removeClippedSubviews
         />
+
+        {/* {loadingMore && (
+          <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#FFB02E" />
+          </View>
+        )} */}
+
+        <View style={styles.loadMoreContainer}>
+          {loadingMore ? (
+            <ActivityIndicator
+              size="small"
+              color="#FFB02E"
+            />
+          ) : (
+            <Pressable
+                disabled={loadingMore}
+                style={[
+                    styles.loadMoreButton,
+                    loadingMore && {
+                        opacity: 0.6,
+                    },
+                ]}
+                onPress={loadNextPage}
+            >
+              <Text style={styles.loadMoreText}>
+                Load More Spas
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {contextError && (
+          <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+            <Text style={{ color: '#FF4F6D', fontFamily: 'WorkSans-Regular', fontSize: 13, marginBottom: 8 }}>
+              {contextError}
+            </Text>
+            <Pressable onPress={retry} style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FFB02E', borderRadius: 6 }}>
+              <Text style={{ color: '#FFF', fontFamily: 'WorkSans-SemiBold', fontSize: 12 }}>Retry</Text>
+            </Pressable>
+          </View>
+        )}
 
         <OfferCard
           item={offer}
@@ -369,16 +583,16 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontFamily:"WorkSans-Medium",
-    fontSize: 16,
-    color: '#6D6D6D',
+    fontSize: 12,
+    color: '#8f8f8f',
     marginBottom: 0,
   },
   title: {
     fontFamily:"Sora-SemiBold",
-    fontSize: 18,
+    fontSize: 16,
     color: '#1F1F1F',
-    lineHeight: 36,
-    marginBottom: 15,
+    // lineHeight: 36,
+    marginBottom: 10,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -402,24 +616,114 @@ const styles = StyleSheet.create({
   featuredList: {
     paddingBottom: 24,
   },
+  // nearbySection: {
+  //   marginBottom: 24,
+  // },
+
   nearbySection: {
-    marginBottom: 24,
-  },
-  mapCard: {
-    width: '100%',
-    borderRadius: 28,
+    marginBottom: 20,
+},
+
+// sectionHeader: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     alignItems: 'center',
+//     marginBottom: 14,
+// },
+
+// sectionTitle: {
+//     fontFamily: 'Sora-SemiBold',
+//     fontSize: 22,
+//     color: '#1F1F1F',
+// },
+
+// sectionAction: {
+//     fontFamily: 'WorkSans-Medium',
+//     fontSize: 15,
+//     color: '#F6A623',
+// },
+
+mapCard: {
     overflow: 'hidden',
-    minHeight: 220,
-    backgroundColor: '#F4EFE8',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
-  },
+    borderRadius: 15,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    elevation: 3,
+},
+
+mapContainer: {
+    flex: 3,
+    height: 180,
+},
+
+map: {
+    flex: 1,
+},
+
+rightContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+},
+
+rightTitle: {
+    marginTop: 12,
+    textAlign: 'center',
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 12,
+    // lineHeight: 28,
+    color: '#1F1F1F',
+},
+
+button: {
+    marginTop: 15,
+    backgroundColor: '#1F1F1F',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+},
+
+buttonText: {
+    color: '#fff',
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 10,
+    textAlign:'center'
+},
+
+ marker: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FFB02E',
+    borderWidth: 3,
+    borderColor: '#fff',
+},
+
+userDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 5,
+    borderColor: '#FFB02E',
+},
+
+  // mapCard: {
+  //   width: '100%',
+  //   borderRadius: 28,
+  //   overflow: 'hidden',
+  //   minHeight: 220,
+  //   backgroundColor: '#F4EFE8',
+  //   shadowColor: '#000',
+  //   shadowOpacity: 0.08,
+  //   shadowRadius: 18,
+  //   shadowOffset: { width: 0, height: 10 },
+  //   elevation: 4,
+  // },
   mapImage: {
     width: '100%',
-    height: 220,
+    height: 180,
   },
   mapOverlay: {
     // ...StyleSheet.absoluteFillObject,
@@ -462,6 +766,27 @@ const styles = StyleSheet.create({
   listSeparator: {
     height: 0,
   },
+  loadMoreContainer: {
+    alignItems: 'center',
+    marginTop: 18,
+    marginBottom: 12,
+},
+
+loadMoreButton: {
+    backgroundColor: '#FFB02E',
+    borderRadius: 28,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    minWidth: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+},
+
+loadMoreText: {
+    fontFamily: 'WorkSans-SemiBold',
+    fontSize: 15,
+    color: '#FFFFFF',
+},
   wellnessRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

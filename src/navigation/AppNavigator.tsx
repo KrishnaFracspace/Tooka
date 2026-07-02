@@ -9,6 +9,9 @@ import BottomNavigation from './BottomNavigation';
 import LoginScreen from '../screens/Auth/Login';
 import OtpScreen from '../screens/Auth/Otp';
 import SplashScreen from '../screens/Splash/SplashScreen';
+import OnboardingScreen from '../screens/Onboarding/OnboardingScreen';
+import ExploreScreen from '../screens/Explore/ExploreScreen';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RootStackParamList — single source of navigation type truth.
@@ -20,8 +23,10 @@ import SplashScreen from '../screens/Splash/SplashScreen';
 
 export type RootStackParamList = {
   Splash: undefined;
+  Onboarding: undefined;
   BottomNavigation: undefined;
   Home: undefined;
+  Explore: undefined;
   SpaDetails: {
     spaId: string;
     serviceId?: string;
@@ -64,6 +69,16 @@ const AppNavigator = () => {
         <Stack.Screen
           name="BottomNavigation"
           component={BottomNavigation}
+        />
+
+        <Stack.Screen
+          name="Explore"
+          component={ExploreScreen}
+        />
+
+        <Stack.Screen
+          name="Onboarding"
+          component={OnboardingScreen}
         />
 
         <Stack.Screen
