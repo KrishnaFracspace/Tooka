@@ -8,6 +8,10 @@ import type {
   LocationPermissionStatus,
   StoredLocation,
 } from '../types/location';
+import {
+  isAddressCacheFresh,
+  resolveAddressForCoordinates,
+} from './locationAddress';
 
 const LOCATION_STORAGE_KEY = 'TOOKA_LOCATION_V1';
 const GEOLOCATION_PERMISSION_DENIED = 1;
@@ -27,6 +31,11 @@ const EMPTY_LOCATION: StoredLocation = {
   timestamp: null,
   permission: 'unknown',
   error: null,
+  locality: null,
+  subLocality: null,
+  city: null,
+  state: null,
+  country: null,
 };
 
 const STARTUP_FINAL_STATUSES: LocationPermissionStatus[] = [
@@ -288,6 +297,11 @@ export async function getSavedLocation(): Promise<StoredLocation | null> {
       timestamp: parsed.timestamp ?? null,
       permission: parsed.permission,
       error: parsed.error ?? null,
+      locality: parsed.locality ?? null,
+      subLocality: parsed.subLocality ?? null,
+      city: parsed.city ?? null,
+      state: parsed.state ?? null,
+      country: parsed.country ?? null,
     };
   } catch (error) {
     if (__DEV__) {
@@ -409,9 +423,62 @@ export async function getCurrentLocation(): Promise<StoredLocation | null> {
     timestamp: position.timestamp || Date.now(),
     permission: 'granted',
     error: null,
+    locality: null,
+    subLocality: null,
+    city: null,
+    state: null,
+    country: null,
   };
 
-  return persistLocation(nextLocation);
+  const cached = await getSavedLocation();
+  const shouldResolveAddress =
+    cached?.latitude === nextLocation.latitude &&
+    cached?.longitude === nextLocation.longitude &&
+    isAddressCacheFresh(cached?.timestamp);
+
+  if (shouldResolveAddress && cached?.city) {
+    return persistLocation({
+      ...nextLocation,
+      locality: cached.locality ?? null,
+      subLocality: cached.subLocality ?? null,
+      city: cached.city ?? null,
+      state: cached.state ?? null,
+      country: cached.country ?? null,
+    });
+  }
+
+  try {
+    if (nextLocation.latitude === null || nextLocation.longitude === null) {
+      throw new Error('Invalid coordinates');
+    }
+
+    const resolvedAddress = await resolveAddressForCoordinates(
+      nextLocation.latitude,
+      nextLocation.longitude,
+    );
+
+    return persistLocation({
+      ...nextLocation,
+      locality: resolvedAddress.locality ?? null,
+      subLocality: resolvedAddress.subLocality ?? null,
+      city: resolvedAddress.city ?? null,
+      state: resolvedAddress.state ?? null,
+      country: resolvedAddress.country ?? null,
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[locationService] failed to resolve address:', error);
+    }
+
+    return persistLocation({
+      ...nextLocation,
+      locality: cached?.locality ?? null,
+      subLocality: cached?.subLocality ?? null,
+      city: cached?.city ?? null,
+      state: cached?.state ?? null,
+      country: cached?.country ?? null,
+    });
+  }
 }
 
 export async function refreshLocation(

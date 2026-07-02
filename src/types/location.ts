@@ -14,6 +14,11 @@ export type StoredLocation = {
   timestamp: number | null;
   permission: LocationPermissionStatus;
   error?: string | null;
+  locality?: string | null;
+  subLocality?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
 };
 
 export type LocationContextValue = {

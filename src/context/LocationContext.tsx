@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { AppState } from 'react-native';
 import {
   getSavedLocation as readSavedLocation,
   hasLocationPermission as checkLocationPermission,
@@ -76,8 +77,24 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     initializeLocation();
 
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'active') {
+        try {
+          const refreshed = await refreshDeviceLocation(false);
+          if (isMounted) {
+            setLocation(refreshed);
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.warn('[LocationContext] app resume refresh error:', error);
+          }
+        }
+      }
+    });
+
     return () => {
       isMounted = false;
+      subscription.remove();
     };
   }, []);
 

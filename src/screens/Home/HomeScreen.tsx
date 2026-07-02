@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { Linking, Platform } from 'react-native';
 import {
   FlatList,
   Image,
@@ -40,6 +41,7 @@ import FullScreenLoader from '../../components/loaders/FullScreenLoader';
 import StateMessage from '../../components/common/StateMessage';
 
 import type { Spa } from '../../types/spa';
+import { getLocationDisplayParts } from '../../services/locationAddress';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -117,7 +119,7 @@ const HomeScreen: React.FC = () => {
   const isTablet = width >= 768;
 
   const categories = categoriesData as CategoryItem[];
-  const { location } = useLocation();
+  const { location, loading: locationLoading, refreshLocation } = useLocation();
   const {
     spas: contextSpas,
     loading: contextLoading,
@@ -154,6 +156,31 @@ const HomeScreen: React.FC = () => {
   const wellnessInsight = wellnessInsightData as WellnessInsightItem;
 
   const { spas, loading, error, refreshing, refetch, onRefresh } = useSpaDiscovery('Hyderabad');
+
+  const locationDisplay = useMemo(() => {
+    const address = location ? {
+      locality: location.locality ?? null,
+      subLocality: location.subLocality ?? null,
+      city: location.city ?? null,
+      state: location.state ?? null,
+      country: location.country ?? null,
+    } : null;
+
+    return getLocationDisplayParts(address, { isLoading: locationLoading });
+  }, [location, locationLoading]);
+
+  const handlePressLocation = useCallback(() => {
+    if (location?.permission === 'denied' || location?.permission === 'blocked' || location?.permission === 'restricted' || location?.permission === 'disabled') {
+      if (Platform.OS === 'ios') {
+        Linking.openURL('app-settings:');
+      } else {
+        Linking.openSettings();
+      }
+      return;
+    }
+
+    refreshLocation(false).catch(() => undefined);
+  }, [location?.permission, refreshLocation]);
 
   const featuredSpas = useMemo<FeaturedSpaItem[]>(
     () =>
@@ -278,10 +305,11 @@ const HomeScreen: React.FC = () => {
         // scrollEventThrottle={16}
       >
         <Header
-          location="Banjara Hills"
-          onPressLocation={() => {
-            // TODO: Add location selector navigation
-          }}
+          location={locationDisplay.primary}
+          locationSecondary={locationDisplay.secondary}
+          isLoading={locationLoading && !location?.city && !location?.locality && !location?.subLocality}
+          isPermissionDenied={location?.permission === 'denied' || location?.permission === 'blocked' || location?.permission === 'restricted' || location?.permission === 'disabled'}
+          onPressLocation={handlePressLocation}
           onPressNotification={() => {
             // TODO: Add notification navigation
           }}

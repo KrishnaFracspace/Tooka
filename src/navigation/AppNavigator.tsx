@@ -6,11 +6,10 @@ import HomeScreen from '../screens/Home/HomeScreen';
 import SpaDetailsScreen from '../screens/Home/SpaDetailsScreen';
 import AllBookingScreen from '../screens/Booking/AllBooking';
 import BottomNavigation from './BottomNavigation';
-import LoginScreen from '../screens/Auth/Login';
-import OtpScreen from '../screens/Auth/Otp';
 import SplashScreen from '../screens/Splash/SplashScreen';
 import OnboardingScreen from '../screens/Onboarding/OnboardingScreen';
 import ExploreScreen from '../screens/Explore/ExploreScreen';
+import AuthenticationScreen from '../authentication/screens/AuthenticationScreen';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,12 +82,7 @@ const AppNavigator = () => {
 
         <Stack.Screen
           name="Login"
-          component={LoginScreen}
-        />
-
-        <Stack.Screen
-          name="Otp"
-          component={OtpScreen}
+          component={AuthenticationScreen}
         />
 
         <Stack.Screen

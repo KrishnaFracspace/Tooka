@@ -2,13 +2,25 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image, Dimensions, Platform } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-const Header = ({ location, onPressLocation, onPressNotification }) => {
-  const {width, height} = Dimensions.get("window");
+const Header = ({
+  location,
+  locationSecondary,
+  isLoading = false,
+  isPermissionDenied = false,
+  onPressLocation,
+  onPressNotification,
+}) => {
+  const {width} = Dimensions.get("window");
+  const primaryLabel = isPermissionDenied
+    ? '📍 Enable Location'
+    : isLoading
+      ? '📍 Detecting location...'
+      : location || '📍 Unknown Location';
+  const secondaryLabel = isPermissionDenied ? '' : locationSecondary || '';
+
   return (
     <View style={styles.header}>
       <View style={styles.brandColumn}>
-        {/* <Text style={styles.brandText}>Tooka</Text>
-        <Text style={styles.brandSubText}>Spa · Salons · Fitness · Wellness</Text> */}
         <Image resizeMode='contain' source={{uri:'https://d2f15ematxpwp4.cloudfront.net/appImages/Tooka_Logo.png'}}
           style={{width: width*0.3, height:Platform.OS == 'android' ? 60 : 80}}
         />
@@ -16,11 +28,12 @@ const Header = ({ location, onPressLocation, onPressNotification }) => {
       <View style={styles.actionRow}>
         <Pressable style={styles.locationButton} onPress={onPressLocation}>
           <Ionicons name="location-sharp" size={16} color="#3C3C3C" />
-          <Text style={styles.locationText}>{location}</Text>
+          <View style={styles.locationTextWrapper}>
+            <Text style={styles.locationPrimaryText}>{primaryLabel}</Text>
+            {secondaryLabel ? <Text style={styles.locationSecondaryText}>{secondaryLabel}</Text> : null}
+          </View>
+          <Ionicons name="chevron-down" size={14} color="#3C3C3C" style={styles.chevronIcon} />
         </Pressable>
-        {/* <Pressable style={styles.notificationButton} onPress={onPressNotification}>
-          <Ionicons name="notifications-outline" size={22} color="#3C3C3C" />
-        </Pressable> */}
       </View>
     </View>
   );
@@ -65,12 +78,25 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+    maxWidth: 220,
   },
-  locationText: {
+  locationTextWrapper: {
     marginLeft: 8,
+    flex: 1,
+  },
+  locationPrimaryText: {
     fontSize: 13,
     color: '#3C3C3C',
-    fontWeight: '600',
+    fontFamily: 'Sora-SemiBold',
+  },
+  locationSecondaryText: {
+    fontSize: 12,
+    color: '#6D6D6D',
+    fontFamily: 'WorkSans-Regular',
+    marginTop: 1,
+  },
+  chevronIcon: {
+    marginLeft: 6,
   },
   notificationButton: {
     width: 44,

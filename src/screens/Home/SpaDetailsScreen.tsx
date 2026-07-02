@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import {
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
@@ -12,6 +11,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import SpaDetailsContent from './SpaDetailsContent';
 import { useSpaDetails } from '../../hooks/useSpaDetails';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type SpaDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SpaDetails'>;
 type SpaDetailsRouteProp = RouteProp<RootStackParamList, 'SpaDetails'>;
