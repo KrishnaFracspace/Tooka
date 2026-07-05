@@ -239,18 +239,20 @@ const ProfileScreen: React.FC = () => {
 
         {/* ── Menu ── */}
         <View style={styles.menuCard}>
-          <MenuItem label="Payment History" leading="💳" />
-          {/* <View style={styles.divider} />
-          <MenuItem label="My address" leading="📍" /> */}
+          <MenuItem label="Payment History" leading="💳" onPress={() => {
+            navigation.navigate('NoPayment');
+          }} />
           <View style={styles.divider} />
-          <MenuItem label="Help & Support" leading="🎧" />
+          {/* <MenuItem label="My address" leading="📍" /> */}
+          {/* <View style={styles.divider} />
+          <MenuItem label="Help & Support" leading="🎧" /> */}
           {/* <View style={styles.divider} />
           <MenuItem label="Refer & Earn" leading="🔗" /> */}
-          <View style={styles.divider} />
+          {/* <View style={styles.divider} />
           <MenuItem label="Saved Spas" leading="🤍" />
           <View style={styles.divider} />
           <MenuItem label="Settings" leading="⚙️" />
-          <View style={styles.divider} />
+          <View style={styles.divider} /> */}
 
           {/* ── Logout ── */}
           <MenuItem

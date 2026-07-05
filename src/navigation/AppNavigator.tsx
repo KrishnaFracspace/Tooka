@@ -11,6 +11,7 @@ import OtpScreen from '../screens/Auth/Otp';
 import SplashScreen from '../screens/Splash/SplashScreen';
 import OnboardingScreen from '../screens/Onboarding/OnboardingScreen';
 import ExploreScreen from '../screens/Explore/ExploreScreen';
+import NoPaymentHistoryScreen from '../screens/Profile/NoPaymentHis';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ export type RootStackParamList = {
   };
   AllBooking: undefined;
   Login: { spaId?: string; serviceId?: string; serviceName?: string } | undefined;
+  NoPayment: undefined;
   Otp: {
     phoneNumber: string;
     spaId?: string;
@@ -104,6 +106,11 @@ const AppNavigator = () => {
         <Stack.Screen
             name="AllBooking"
             component={AllBookingScreen}
+        />
+
+        <Stack.Screen
+            name="NoPayment"
+            component={NoPaymentHistoryScreen}
         />
 
       </Stack.Navigator>

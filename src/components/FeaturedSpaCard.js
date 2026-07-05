@@ -9,9 +9,9 @@ const FeaturedSpaCard = ({ item, onPress, onPressFavorite }) => {
         <View style={styles.badgeContainer}>
           <Text style={styles.badgeText}>{item.badge}</Text>
         </View>
-        <Pressable onPress={onPressFavorite} style={styles.favoriteButton}>
+        {/* <Pressable onPress={onPressFavorite} style={styles.favoriteButton}>
           <Ionicons name={item.favorite ? 'heart' : 'heart-outline'} size={18} color={item.favorite ? '#FF4C4C' : '#FFFFFF'} />
-        </Pressable>
+        </Pressable> */}
       </ImageBackground>
       <View style={styles.details}> 
         <View>

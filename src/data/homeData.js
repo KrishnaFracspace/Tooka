@@ -104,7 +104,7 @@ const offer = {
   label: 'Limited time',
   title: 'Take a break today.',
   subtitle: '20% off at your favourite spa.',
-  cta: 'Claim Now',
+  cta: 'Live Soon',
 };
 
 const wellnessInsight = {
