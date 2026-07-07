@@ -2,6 +2,7 @@ import axiosClient from './axiosClient';
 import tookaAxiosClient from './tookaAxiosClient';
 import type { Spa } from '../types/spa';
 import type { SpaDetails } from '../types/spaDetails';
+import authAxiosClient from './authAxiosClient';
 
 export interface DiscoverSpaParams {
   city: string;
@@ -77,7 +78,7 @@ export const SpaApi = {
    * Search spas by query and city
    */
   searchSpas: async (query: string, cancelToken?: any): Promise<Spa[]> => {
-    const response = await tookaAxiosClient.get<ApiResponse<Spa[]>>(
+    const response = await authAxiosClient.get<ApiResponse<Spa[]>>(
       '/spas/search',
       {
         params: {

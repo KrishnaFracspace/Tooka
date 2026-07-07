@@ -37,7 +37,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSpaDiscovery } from '../../hooks/useSpaDiscovery';
 import { useLocation } from '../../context/LocationContext';
 import { useNearbySpas } from '../../context/NearbySpaContext';
-import { useSpaSearch, type SearchSpaItem } from '../../hooks/useSpaSearch';
 import FullScreenLoader from '../../components/loaders/FullScreenLoader';
 import StateMessage from '../../components/common/StateMessage';
 
@@ -116,6 +115,7 @@ const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { width } = useWindowDimensions();
   const [selectedCategory, setSelectedCategory] = useState<string>('spa');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const isTablet = width >= 768;
 
   const categories = categoriesData as CategoryItem[];
@@ -127,18 +127,6 @@ const HomeScreen: React.FC = () => {
     refresh: contextRefresh,
     error: contextError,
   } = useNearbySpas();
-  const {
-    searchQuery,
-    setSearchQuery,
-    searchResults,
-    isSearching,
-    searchLoading,
-    searchError,
-    searchHasSearched,
-    normalizedQuery,
-    clearSearch,
-    retrySearch,
-  } = useSpaSearch();
 
   const nearbySpas = useMemo<NearbySpaItem[]>(
     () =>
@@ -215,26 +203,6 @@ const HomeScreen: React.FC = () => {
   const previewSpas = useMemo(() => {
     return nearbySpas.slice(0, 4);
   }, [nearbySpas]);
-
-  const curatedSpas = useMemo<FeaturedSpaItem[]>(() => {
-    if (searchHasSearched && normalizedQuery) {
-      return searchResults.map((spa) => ({
-        id: spa.id,
-        name: spa.name ?? 'Untitled Spa',
-        location: spa.subtitle ?? DEFAULT_LOCATION,
-        distance: DEFAULT_DISTANCE,
-        rating: spa.rating ?? String(DEFAULT_RATING),
-        reviews: '0 reviews',
-        price: DEFAULT_PRICE,
-        oldPrice: '',
-        badge: DEFAULT_BADGE,
-        image: spa.image ?? PLACEHOLDER_IMAGE,
-        favorite: false,
-      }));
-    }
-
-    return featuredSpas;
-  }, [featuredSpas, normalizedQuery, searchHasSearched, searchResults]);
   // console.log("Preview Spa: ", previewSpas);
 
   const handlePressSpaCard = useCallback(
@@ -318,11 +286,6 @@ const HomeScreen: React.FC = () => {
   const isInitialLoading = (loading && spas.length === 0) ||
     (contextLoading && contextSpas.length === 0 && location?.permission === 'granted');
 
-  const shouldShowSearchLoading = isSearching || (searchHasSearched && searchLoading);
-  const shouldShowSearchEmptyState = searchHasSearched && !searchLoading && !searchError && curatedSpas.length === 0;
-  const shouldShowSearchError = Boolean(searchError && searchHasSearched && searchResults.length === 0);
-  const shouldShowSearchResults = searchHasSearched && !searchLoading && curatedSpas.length > 0;
-
   if (isInitialLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -380,48 +343,13 @@ const HomeScreen: React.FC = () => {
         />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{searchHasSearched && normalizedQuery ? 'Search results' : 'Curated for you'}</Text>
+          <Text style={styles.sectionTitle}>Curated for you</Text>
           <Pressable onPress={() => {}}>
             <Text style={styles.sectionAction}>See all</Text>
           </Pressable>
         </View>
 
-        {shouldShowSearchLoading ? (
-          <View style={styles.searchLoadingContainer}>
-            <ActivityIndicator size="small" color="#FFB02E" />
-          </View>
-        ) : shouldShowSearchError ? (
-          <StateMessage
-            title="Couldn't search spas."
-            subtitle="Please try again with another spa name or city."
-            actionLabel="Retry"
-            onAction={retrySearch}
-          />
-        ) : shouldShowSearchEmptyState ? (
-          <View style={styles.emptyStateContainer}>
-            <Ionicons name="search" size={40} color="#FFB02E" />
-            <Text style={styles.emptyStateTitle}>No spas found</Text>
-            <Text style={styles.emptyStateSubtitle}>Try another spa name or city.</Text>
-            <Pressable style={styles.emptyStateButton} onPress={clearSearch}>
-              <Text style={styles.emptyStateButtonText}>Clear Search</Text>
-            </Pressable>
-          </View>
-        ) : shouldShowSearchResults ? (
-          <FlatList<FeaturedSpaItem>
-            data={curatedSpas}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.featuredList}
-            initialNumToRender={3}
-            maxToRenderPerBatch={4}
-            windowSize={5}
-            removeClippedSubviews
-            renderItem={renderFeaturedSpaItem}
-            getItemLayout={getFeaturedSpaItemLayout}
-            extraData={curatedSpas}
-          />
-        ) : error && spas.length === 0 ? (
+        {error && spas.length === 0 ? (
           <StateMessage
             title="Something went wrong."
             subtitle="Please try again."
@@ -437,7 +365,7 @@ const HomeScreen: React.FC = () => {
           />
         ) : (
           <FlatList<FeaturedSpaItem>
-            data={curatedSpas}
+            data={featuredSpas}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
@@ -448,7 +376,6 @@ const HomeScreen: React.FC = () => {
             removeClippedSubviews
             renderItem={renderFeaturedSpaItem}
             getItemLayout={getFeaturedSpaItemLayout}
-            extraData={curatedSpas}
           />
         )}
 
@@ -716,44 +643,6 @@ const styles = StyleSheet.create({
   },
   featuredList: {
     paddingBottom: 24,
-  },
-  searchLoadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-  },
-  emptyStateContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 28,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    marginBottom: 24,
-  },
-  emptyStateTitle: {
-    marginTop: 12,
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1F1F1F',
-  },
-  emptyStateSubtitle: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#7A7A7A',
-    textAlign: 'center',
-    paddingHorizontal: 24,
-  },
-  emptyStateButton: {
-    marginTop: 16,
-    backgroundColor: '#FFB02E',
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  emptyStateButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
   },
   // nearbySection: {
   //   marginBottom: 24,

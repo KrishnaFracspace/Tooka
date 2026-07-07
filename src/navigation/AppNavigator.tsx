@@ -34,19 +34,6 @@ export type RootStackParamList = {
   };
   AllBooking: undefined;
   Login: { spaId?: string; serviceId?: string; serviceName?: string } | undefined;
-  Otp: {
-    phoneNumber: string;
-    spaId?: string;
-    serviceId?: string;
-    serviceName?: string;
-    /**
-     * True when the OTP flow was initiated from the Profile tab's embedded
-     * LoginScreen (not from a SpaDetails booking flow).
-     * After OTP success in this case, we navigate to BottomNavigation
-     * instead of SpaDetails or goBack().
-     */
-    isFromProfileTab?: boolean;
-  } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

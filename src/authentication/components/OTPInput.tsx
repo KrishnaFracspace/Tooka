@@ -9,6 +9,7 @@ interface OTPInputProps {
   onFocus: () => void;
   inputRef?: React.Ref<TextInput>;
   autoFocus?: boolean;
+  disabled?: boolean;
 }
 
 export const OTPInput: React.FC<OTPInputProps> = React.memo((props) => {
@@ -29,6 +30,7 @@ export const OTPInput: React.FC<OTPInputProps> = React.memo((props) => {
       textContentType="oneTimeCode"
       selectionColor={AUTH_COLORS.primary}
       accessibilityLabel="OTP digit"
+      editable={!props.disabled}
     />
   );
 });

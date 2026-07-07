@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   LayoutAnimation,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +15,9 @@ import {
   type TextInputKeyPressEventData,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
+
 import { AuthHeader } from '../components/AuthHeader';
 import { AuthCard } from '../components/AuthCard';
 import { GradientButton } from '../components/GradientButton';
@@ -23,44 +25,135 @@ import { NameInput } from '../components/NameInput';
 import { OTPInput } from '../components/OTPInput';
 import { PhoneInput } from '../components/PhoneInput';
 import { ResendOtp } from '../components/ResendOtp';
-import { StepIndicator } from '../components/StepIndicator';
 import { TermsText } from '../components/TermsText';
-import { AUTH_COLORS, AUTH_CONFIG, AUTH_TEXT, getKeyboardBehavior, saveName, sendOtp, verifyOtp } from '../constants/auth';
+import { AUTH_COLORS, AUTH_CONFIG, AUTH_TEXT, getKeyboardBehavior } from '../constants/auth';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useOtpTimer } from '../hooks/useOtpTimer';
-import type { AuthStep } from '../types/auth';
+import { useAuth } from '../../context/AuthContext';
+import AuthApi from '../../api/AuthApi';
 import HeroSection from '../components/HeroSection';
 
-const AuthenticationScreen: React.FC = () => {
+type AuthStep = 'phone' | 'name' | 'otp' | 'success';
+
+interface AuthenticationScreenProps {
+  isEmbedded?: boolean;
+}
+
+const AuthenticationScreen: React.FC<AuthenticationScreenProps> = ({ isEmbedded = false }) => {
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+
+  const { login, register } = useAuth();
+
+  // Screen state
   const [step, setStep] = useState<AuthStep>('phone');
   const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');
   const [otp, setOtp] = useState<string[]>(Array(AUTH_CONFIG.otpLength).fill(''));
   const [otpDigits, setOtpDigits] = useState('');
-  const [name, setName] = useState('');
+
+  // Status state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
+
+  // References
   const otpRefs = useRef<Array<TextInput | null>>([]);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const isKeyboardVisible = useKeyboard();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // OTP Resend timer
   const { timeLeft, reset, isExpired } = useOtpTimer(AUTH_CONFIG.resendSeconds);
 
-  const stepIndex = useMemo(() => ({ phone: 0, otp: 1, name: 2, success: 2 })[step], [step]);
+  // Parse route parameters for redirect/booking flow
+  const spaId = isEmbedded ? undefined : route?.params?.spaId;
+  const serviceId = isEmbedded ? undefined : route?.params?.serviceId;
+  const serviceName = isEmbedded ? undefined : route?.params?.serviceName;
+
+  // Clean up any pending requests on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const animateTransition = useCallback(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
+    if (Platform.OS !== 'web') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 0.3,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, [fadeAnim]);
 
-  useEffect(() => {
+  // Handle step updates with transition animation
+  const transitionToStep = useCallback((nextStep: AuthStep) => {
     animateTransition();
-  }, [step, animateTransition]);
+    setStep(nextStep);
+  }, [animateTransition]);
 
+  // Check if inputs are valid for current step
+  const isFormValid = useMemo(() => {
+    if (step === 'phone') {
+      return phone.length === AUTH_CONFIG.phoneLength;
+    }
+    if (step === 'name') {
+      const trimmedName = name.trim();
+      return trimmedName.length >= AUTH_CONFIG.minNameLength && trimmedName.length <= 50;
+    }
+    if (step === 'otp') {
+      return otpDigits.length === AUTH_CONFIG.otpLength;
+    }
+    return false;
+  }, [step, phone, name, otpDigits]);
+
+  // Cancel any ongoing request before launching a new one
+  const getAbortSignal = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    return abortControllerRef.current.signal;
+  };
+
+  // Handle generic error responses
+  const handleApiError = (err: any) => {
+    let friendlyMessage = 'Something went wrong. Please try again.';
+    if (err && err.message) {
+      if (err.message.toLowerCase().includes('network') || err.message.toLowerCase().includes('offline')) {
+        friendlyMessage = 'You are offline. Please check your internet connection.';
+      } else if (err.message.toLowerCase().includes('timeout')) {
+        friendlyMessage = 'Request timed out. Please try again.';
+      } else if (err.message.toLowerCase().includes('canceled') || err.message.toLowerCase().includes('cancelled')) {
+        return; // Ignore canceled request
+      } else {
+        friendlyMessage = err.message;
+      }
+    } else if (typeof err === 'string') {
+      friendlyMessage = err;
+    }
+
+    setError(friendlyMessage);
+    Toast.show({
+      type: 'error',
+      text1: 'Authentication Error',
+      text2: friendlyMessage,
+    });
+  };
+
+  // Step 1: Send OTP
   const handlePhoneSubmit = useCallback(async () => {
     if (phone.length !== AUTH_CONFIG.phoneLength || loading) {
       setError('Please enter a valid 10-digit phone number');
@@ -69,116 +162,174 @@ const AuthenticationScreen: React.FC = () => {
 
     setLoading(true);
     setError('');
-    const response = await sendOtp(phone);
-    setLoading(false);
-    if (!response.success) {
-      setError(response.message ?? 'Unable to send OTP');
+    setSuccessMessage('');
+
+    const formattedPhone = `+91${phone}`;
+    const signal = getAbortSignal();
+
+    try {
+      const response = await AuthApi.sendOtp(formattedPhone, signal);
+      if (response.success) {
+        setIsRegistered(response.data.isRegistered);
+        setSuccessMessage('OTP sent successfully');
+        reset(); // reset resend timer
+
+        if (response.data.isRegistered) {
+          transitionToStep('otp');
+        } else {
+          transitionToStep('name');
+        }
+      } else {
+        setError('Failed to send OTP. Please try again.');
+      }
+    } catch (err: any) {
+      handleApiError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [phone, loading, reset, transitionToStep]);
+
+  // Step 1.5: Name submit for new users
+  const handleNameSubmit = useCallback(() => {
+    const trimmedName = name.trim();
+    if (trimmedName.length < AUTH_CONFIG.minNameLength || trimmedName.length > 50) {
+      setError('Name must be between 2 and 50 characters');
+      return;
+    }
+    setError('');
+    transitionToStep('otp');
+  }, [name, transitionToStep]);
+
+  // Step 2: Verify OTP and Register/Login
+  const handleOtpSubmit = useCallback(async () => {
+    if (otpDigits.length !== AUTH_CONFIG.otpLength || loading) {
       return;
     }
 
-    setSuccessMessage('OTP sent successfully');
-    setStep('otp');
-    setOtpDigits('');
-    setOtp(Array(AUTH_CONFIG.otpLength).fill(''));
-    reset();
-  }, [loading, phone, reset]);
+    setLoading(true);
+    setError('');
+    setSuccessMessage('');
 
+    const formattedPhone = `+91${phone}`;
+    const signal = getAbortSignal();
+
+    try {
+      let loggedInUser;
+      if (isRegistered) {
+        // Existing user flow
+        loggedInUser = await login(formattedPhone, otpDigits);
+      } else {
+        // New user flow
+        loggedInUser = await register(formattedPhone, otpDigits, name.trim());
+      }
+
+      setSuccessMessage('Successfully verified!');
+      transitionToStep('success');
+
+      // Navigate back or to spa details
+      setTimeout(() => {
+        if (spaId) {
+          navigation.navigate('SpaDetails', {
+            spaId,
+            serviceId,
+            serviceName,
+            openEnquiry: true,
+          });
+        } else if (!isEmbedded) {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('BottomNavigation');
+          }
+        }
+      }, 500);
+
+    } catch (err: any) {
+      handleApiError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [phone, otpDigits, isRegistered, name, loading, spaId, serviceId, serviceName, isEmbedded, login, register, navigation]);
+
+  // OTP inputs callbacks
   const handleOtpChange = useCallback((index: number, value: string) => {
-    if (!/^[0-9]?$/.test(value)) {
+    const sanitized = value.replace(/[^0-9]/g, '');
+    if (!sanitized) {
       return;
     }
     const nextOtp = [...otp];
-    nextOtp[index] = value;
+    nextOtp[index] = sanitized;
     setOtp(nextOtp);
-    setOtpDigits(nextOtp.join(''));
-    if (value && index < AUTH_CONFIG.otpLength - 1) {
+    const code = nextOtp.join('');
+    setOtpDigits(code);
+
+    if (index < AUTH_CONFIG.otpLength - 1) {
       otpRefs.current[index + 1]?.focus();
     }
   }, [otp]);
 
   const handleOtpKeyPress = useCallback((index: number, event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
-    if (event.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+    if (event.nativeEvent.key === 'Backspace') {
       const nextOtp = [...otp];
-      nextOtp[index - 1] = '';
+      nextOtp[index] = '';
       setOtp(nextOtp);
       setOtpDigits(nextOtp.join(''));
-      otpRefs.current[index - 1]?.focus();
+
+      if (index > 0) {
+        otpRefs.current[index - 1]?.focus();
+      }
     }
   }, [otp]);
 
-  const handleOtpSubmit = useCallback(async () => {
-    if (otpDigits.length !== AUTH_CONFIG.otpLength || submitting) {
-      return;
-    }
-
-    setSubmitting(true);
-    setError('');
-    const response = await verifyOtp(otpDigits);
-    setSubmitting(false);
-
-    if (!response.success) {
-      setError(response.message ?? 'Wrong OTP');
-      return;
-    }
-
-    setSuccessMessage(response.message ?? 'Verified');
-    const existingUser = await (await import('../constants/auth')).checkExistingUser(phone);
-    if (existingUser) {
-      setStep('success');
-      return;
-    }
-
-    setStep('name');
-  }, [otpDigits, phone, submitting]);
-
-  const handleNameSubmit = useCallback(async () => {
-    if (name.trim().length < AUTH_CONFIG.minNameLength || submitting) {
-      setError('Please enter at least 2 characters');
-      return;
-    }
-
-    setSubmitting(true);
-    setError('');
-    const response = await saveName(name);
-    setSubmitting(false);
-
-    if (!response.success) {
-      setError(response.message ?? 'Unable to save profile');
-      return;
-    }
-
-    setSuccessMessage(response.message ?? 'Done');
-    setStep('success');
-  }, [name, submitting]);
-
-  const handleResendOtp = useCallback(() => {
+  const handleResendOtp = useCallback(async () => {
+    if (loading) return;
     setOtp(Array(AUTH_CONFIG.otpLength).fill(''));
     setOtpDigits('');
-    reset();
+    setLoading(true);
     setError('');
-    setSuccessMessage('OTP resent');
-  }, [reset]);
+    setSuccessMessage('');
+
+    const formattedPhone = `+91${phone}`;
+    const signal = getAbortSignal();
+
+    try {
+      const response = await AuthApi.sendOtp(formattedPhone, signal);
+      if (response.success) {
+        setSuccessMessage('OTP resent successfully');
+        reset();
+      }
+    } catch (err: any) {
+      handleApiError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [phone, loading, reset]);
 
   const renderBody = () => {
     if (step === 'success') {
       return (
-        <Animated.View style={styles.successCard}>
+        <Animated.View style={[styles.successCard, { opacity: fadeAnim }]}>
           <Text style={styles.successTitle}>Authentication complete</Text>
           <Text style={styles.successSubtitle}>You’re all set to explore Tooka wellness experiences.</Text>
-          <GradientButton label="Continue" onPress={() => {}} disabled />
         </Animated.View>
       );
     }
 
     return (
-      <Animated.View style={styles.formCard}>
-        {/* <Text style={styles.cardTitle}>{step === 'phone' ? AUTH_TEXT.title : step === 'otp' ? AUTH_TEXT.otpTitle : AUTH_TEXT.nameTitle}</Text> */}
-        {/* <Text style={styles.cardSubtitle}>{step === 'phone' ? AUTH_TEXT.subtitle : step === 'otp' ? AUTH_TEXT.otpSubtitle : AUTH_TEXT.nameSubtitle}</Text> */}
-
-        {step === 'phone' ? (
+      <Animated.View style={[styles.formCard, { opacity: fadeAnim }]}>
+        {step === 'phone' && (
           <PhoneInput value={phone} onChangeText={setPhone} error={error} disabled={loading} />
-        ) : step === 'otp' ? (
+        )}
+
+        {step === 'name' && (
+          <NameInput value={name} onChangeText={setName} error={error} disabled={loading} />
+        )}
+
+        {step === 'otp' && (
           <View style={styles.otpContainer}>
+            <View style={styles.otpLabelRow}>
+              <Text style={styles.otpLabel}>Enter 6-digit OTP</Text>
+            </View>
             <View style={styles.otpBoxes}>
               {otp.map((digit, index) => (
                 <OTPInput
@@ -191,29 +342,42 @@ const AuthenticationScreen: React.FC = () => {
                     otpRefs.current[index] = ref;
                   }}
                   autoFocus={index === 0}
+                  disabled={loading}
                 />
               ))}
             </View>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
             <ResendOtp timeLeft={timeLeft} isExpired={isExpired} onResend={handleResendOtp} />
           </View>
-        ) : (
-          <NameInput value={name} onChangeText={setName} error={error} />
         )}
 
         {successMessage ? <Text style={styles.successText}>{successMessage}</Text> : null}
 
         <GradientButton
-          label={step === 'phone' ? 'Send OTP' : step === 'otp' ? 'Verify OTP' : 'Continue'}
-          onPress={step === 'phone' ? handlePhoneSubmit : step === 'otp' ? handleOtpSubmit : handleNameSubmit}
-          loading={loading || submitting}
-          disabled={step === 'phone' ? phone.length !== AUTH_CONFIG.phoneLength : step === 'otp' ? otpDigits.length !== AUTH_CONFIG.otpLength : name.trim().length < AUTH_CONFIG.minNameLength}
+          label={step === 'phone' ? 'Continue' : step === 'name' ? 'Continue' : 'Verify & Log In'}
+          onPress={step === 'phone' ? handlePhoneSubmit : step === 'name' ? handleNameSubmit : handleOtpSubmit}
+          loading={loading}
+          disabled={!isFormValid || loading}
         />
 
-        {step === 'phone' || step === 'otp' ? <TermsText /> : null}
+        {(step === 'phone' || step === 'otp') && <TermsText />}
       </Animated.View>
     );
   };
+
+  const currentTitle = useMemo(() => {
+    if (step === 'phone') return AUTH_TEXT.title;
+    if (step === 'name') return AUTH_TEXT.nameTitle;
+    if (step === 'otp') return AUTH_TEXT.otpTitle;
+    return 'You’re all set';
+  }, [step]);
+
+  const currentSubtitle = useMemo(() => {
+    if (step === 'phone') return AUTH_TEXT.subtitle;
+    if (step === 'name') return AUTH_TEXT.nameSubtitle;
+    if (step === 'otp') return `${AUTH_TEXT.otpSubtitle} +91 ${phone}`;
+    return 'Authentication complete';
+  }, [step, phone]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -221,13 +385,9 @@ const AuthenticationScreen: React.FC = () => {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.flex}>
             <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <HeroSection/>
-              <AuthHeader 
-                title={step === 'phone' ? AUTH_TEXT.title : step === 'otp' ? AUTH_TEXT.otpTitle : step === 'name' ? AUTH_TEXT.nameTitle : 'You’re all set'} 
-                subtitle={step === 'phone' ? AUTH_TEXT.subtitle : step === 'otp' ? AUTH_TEXT.otpSubtitle : step === 'name' ? AUTH_TEXT.nameSubtitle : 'Authentication complete'}
-              />
+              <HeroSection />
+              <AuthHeader title={currentTitle} subtitle={currentSubtitle} />
               <AuthCard>
-                {/* <StepIndicator activeStep={stepIndex} /> */}
                 {renderBody()}
               </AuthCard>
             </ScrollView>
@@ -260,24 +420,17 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     alignItems: 'center',
   },
-  cardTitle: {
-    fontFamily: 'Sora-SemiBold',
-    fontSize: 22,
-    color: AUTH_COLORS.text,
-    textAlign: 'center',
-  },
-  cardSubtitle: {
-    fontFamily: 'WorkSans-Regular',
-    fontSize: 14,
-    color: AUTH_COLORS.secondaryText,
-    textAlign: 'center',
-    marginTop: 6,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
   otpContainer: {
     width: '100%',
     marginTop: 4,
+  },
+  otpLabelRow: {
+    marginBottom: 10,
+  },
+  otpLabel: {
+    fontFamily: 'WorkSans-SemiBold',
+    fontSize: 14,
+    color: AUTH_COLORS.text,
   },
   otpBoxes: {
     flexDirection: 'row',
@@ -303,6 +456,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Sora-SemiBold',
     fontSize: 22,
     color: AUTH_COLORS.text,
+    textAlign: 'center',
   },
   successSubtitle: {
     fontFamily: 'WorkSans-Regular',

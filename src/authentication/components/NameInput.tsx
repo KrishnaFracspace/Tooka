@@ -6,9 +6,10 @@ interface NameInputProps {
   value: string;
   onChangeText: (text: string) => void;
   error?: string;
+  disabled?: boolean;
 }
 
-export const NameInput: React.FC<NameInputProps> = React.memo(({ value, onChangeText, error }) => {
+export const NameInput: React.FC<NameInputProps> = React.memo(({ value, onChangeText, error, disabled }) => {
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>Name</Text>
@@ -22,6 +23,7 @@ export const NameInput: React.FC<NameInputProps> = React.memo(({ value, onChange
         autoCorrect={false}
         returnKeyType="done"
         accessibilityLabel="Name input"
+        editable={!disabled}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>

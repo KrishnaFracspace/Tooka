@@ -1,47 +1,63 @@
-import axiosClient from './axiosClient';
+import authAxiosClient from './authAxiosClient';
+
+export interface SendOtpResponse {
+  success: boolean;
+  data: {
+    phone: string;
+    isRegistered: boolean;
+    expiresInMinutes: number;
+  };
+}
 
 export interface RegisterPayload {
-  userName: string;
-  phoneNumber: string;
+  phone: string;
+  otp: string;
+  username: string;
+  fullName: string;
   email: string;
-  countryCode: string;
 }
 
 export interface LoginPayload {
-  phoneNumber: string;
-  smsCountry: boolean;
+  phone: string;
+  otp: string;
 }
 
-export interface VerifyOtpPayload {
-  phoneNumber: string;
-  otp: string;
-  smsCountry: boolean;
+export interface AuthResponse {
+  success: boolean;
+  data: {
+    token: string;
+    user: {
+      id: string;
+      userName: string;
+      fullName?: string;
+      email?: string;
+      phoneNumber: string;
+    };
+  };
 }
 
 const AuthApi = {
-  GetRegistration: async (payload: RegisterPayload) => {
+  sendOtp: async (phone: string, signal?: AbortSignal): Promise<SendOtpResponse> => {
     try {
-      const resp = await axiosClient.post('/users/userRegisterationWithoutPassword', payload);
+      const resp = await authAxiosClient.post('/auth/send-otp', { phone }, { signal });
       return resp.data;
     } catch (error: any) {
       throw error?.response?.data ?? error;
     }
   },
 
-  GetLogin: async (payload: LoginPayload) => {
+  register: async (payload: RegisterPayload, signal?: AbortSignal): Promise<AuthResponse> => {
     try {
-      const stringifiedPayload = JSON.stringify(payload);
-      const resp = await axiosClient.post('/users/loginWithPhoneNumber', stringifiedPayload);
+      const resp = await authAxiosClient.post('/auth/register', payload, { signal });
       return resp.data;
     } catch (error: any) {
       throw error?.response?.data ?? error;
     }
   },
 
-  GetOtpForLoginWithNumber: async (payload: VerifyOtpPayload) => {
+  login: async (payload: LoginPayload, signal?: AbortSignal): Promise<AuthResponse> => {
     try {
-      const stringifiedPayload = JSON.stringify(payload);
-      const resp = await axiosClient.post('/users/loginOTPverificationWithPhoneNumber', stringifiedPayload);
+      const resp = await authAxiosClient.post('/auth/login', payload, { signal });
       return resp.data;
     } catch (error: any) {
       throw error?.response?.data ?? error;
