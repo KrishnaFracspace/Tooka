@@ -23,7 +23,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-import EnquiryModal from '../../components/EnquiryModal';
 import SpaDetailsSkeleton from '../../components/loaders/SpaDetailsSkeleton';
 import StateMessage from '../../components/common/StateMessage';
 import { useAuth } from '../../context/AuthContext';
@@ -293,8 +292,8 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
   const reviewCardWidth = isTablet ? 300 : Math.max(260, width * 0.64);
   const offer = offerData;
   const { user, isAuthenticated } = useAuth();
+  // console.log('Auth: ', isAuthenticated, user);
 
-  const [enquiryVisible, setEnquiryVisible] = useState(false);
   const [selectedHeroIndex, setSelectedHeroIndex] = useState(0);
   const [selectedService, setSelectedService] = useState<{ id?: string; name?: string }>({
     id: serviceId,
@@ -304,37 +303,6 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
   useEffect(() => {
     setSelectedService({ id: serviceId, name: serviceName });
   }, [serviceId, serviceName]);
-
-  useEffect(() => {
-    if (openEnquiry) {
-      setEnquiryVisible(true);
-    }
-  }, [openEnquiry]);
-
-  const enquiryDefaults = useMemo(
-    () => ({
-      name: user?.userName ?? '',
-      email: user?.email ?? '',
-      message: '',
-    }),
-    [user?.userName, user?.email],
-  );
-
-  const handleSubmitEnquiry = useCallback(
-    (values: { name: string; email: string; message: string }) => {
-      const payload = {
-        spaId,
-        serviceId: selectedService.id,
-        serviceName: selectedService.name,
-        name: values.name,
-        email: values.email,
-        message: values.message,
-      };
-      console.log('submitEnquiry', payload);
-      setEnquiryVisible(false);
-    },
-    [spaId, selectedService.id, selectedService.name],
-  );
 
   const heroImage = useMemo(() => ({ uri: spa?.cover_photo_url ?? PLACEHOLDER_IMAGE }), [spa?.cover_photo_url]);
 
@@ -379,7 +347,6 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
       }
 
       if (isAuthenticated) {
-        setEnquiryVisible(true);
         return;
       }
 
@@ -515,14 +482,14 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
           </Pressable>
         )}
 
-        <Pressable
+        {/* <Pressable
           style={styles.favoriteButton}
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Save spa"
         >
           <Ionicons name="heart-outline" size={26} color="#FFFFFF" />
-        </Pressable>
+        </Pressable> */}
 
         {heroImages.length > 1 && (
           <View style={styles.pagination}>
@@ -694,12 +661,6 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
         </View>
       )}
 
-      <EnquiryModal
-        visible={enquiryVisible}
-        onClose={() => setEnquiryVisible(false)}
-        onSubmit={handleSubmitEnquiry}
-        defaultValues={enquiryDefaults}
-      />
     </View>
   );
 });

@@ -11,12 +11,29 @@ import {
   StyleProp,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { getPendingEnquiries } from '../../services/enquiryStorage';
+import type { PendingEnquiry } from '../../types/Enquiry';
 
 const BOOKING_IMAGE = {
   uri: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=60',
 };
 
 type BookingStatus = 'upcoming' | 'completed' | 'cancelled';
+
+type BookingListItem = {
+  id: string;
+  spaName: string;
+  location: string;
+  people: string;
+  date: string;
+  time: string;
+  bookingId: string;
+  status: BookingStatus;
+  isPending?: boolean;
+  note?: string;
+  imageSource?: { uri: string };
+};
 
 type TabButtonProps = {
   label: string;
@@ -26,7 +43,7 @@ type TabButtonProps = {
 };
 
 const TabButton: React.FC<TabButtonProps> = ({ label, isActive, onPress, style }) => (
-  <Pressable
+<Pressable
     onPress={onPress}
     style={[styles.tabButton, isActive && styles.tabButtonActive, style]}
     android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
@@ -35,15 +52,31 @@ const TabButton: React.FC<TabButtonProps> = ({ label, isActive, onPress, style }
   </Pressable>
 );
 
+// type BookingCardProps = {
+//   spaName: string;
+//   location: string;
+//   // service: string;
+//   people: string;
+//   date: string;
+//   time: string;
+//   bookingId: string;
+//   status: BookingStatus;
+//   imageSource?: { uri: string };
+//   onPress?: () => void;
+//   style?: StyleProp<ViewStyle>;
+// };
 type BookingCardProps = {
   spaName: string;
   location: string;
-  service: string;
   people: string;
   date: string;
   time: string;
   bookingId: string;
   status: BookingStatus;
+
+  isPending?: boolean;      // <-- ADD THIS
+  note?: string;            // <-- ADD THIS
+
   imageSource?: { uri: string };
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -52,20 +85,37 @@ type BookingCardProps = {
 const BookingCard: React.FC<BookingCardProps> = ({
   spaName,
   location,
-  service,
+  // service,
   people,
   date,
   time,
   bookingId,
+  isPending = false,     // <-- ADD
+  note,
   status,
   imageSource,
   onPress,
   style,
 }) => {
-  const statusLabel =
-    status === 'upcoming' ? 'Confirmed' : status === 'completed' ? 'Completed' : 'Cancelled';
-  const statusColor =
-    status === 'upcoming' ? '#FFB02E' : status === 'completed' ? '#2E8B57' : '#C85A54';
+  // const statusLabel =
+  //   status === 'upcoming' ? 'Confirmed' : status === 'completed' ? 'Completed' : 'Cancelled';
+
+    const statusLabel = isPending
+  ? 'Pending'
+  : status === 'upcoming'
+  ? 'Confirmed'
+  : status === 'completed'
+  ? 'Completed'
+  : 'Cancelled';
+  // const statusColor =
+  //   status === 'upcoming' ? '#FFB02E' : status === 'completed' ? '#2E8B57' : '#C85A54';
+  const statusColor = isPending
+  ? '#FF9800'
+  : status === 'upcoming'
+  ? '#2E8B57'
+  : status === 'completed'
+  ? '#2E8B57'
+  : '#C85A54';
 
   return (
     <View style={[styles.bookingCard, style]}>
@@ -84,10 +134,10 @@ const BookingCard: React.FC<BookingCardProps> = ({
           <Text style={styles.detailText}>{location}</Text>
         </View>
 
-        <View style={styles.detailRow}>
+        {/* <View style={styles.detailRow}>
           <Text style={styles.detailIcon}>🧖</Text>
           <Text style={styles.detailText}>{service}</Text>
-        </View>
+        </View> */}
 
         <View style={styles.detailRow}>
           <Text style={styles.detailIcon}>👤</Text>
@@ -107,14 +157,38 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
         <View style={styles.divider} />
 
+        {isPending && (
+          <View
+            style={{
+              backgroundColor: '#FFF8E7',
+              borderRadius: 10,
+              padding: 10,
+              marginTop: 12,
+            }}>
+            <Text
+              style={{
+                color: '#8A6D3B',
+                fontSize: 13,
+                lineHeight: 20,
+              }}>
+              🎉 We have received your enquiry successfully.
+
+              {'\n\n'}
+
+              Our team will contact you shortly to confirm your preferred date and
+              time.
+            </Text>
+          </View>
+        )}
+
         <View style={styles.bookingIdRow}>
           <View>
             <Text style={styles.bookingIdLabel}>Booking ID</Text>
             <Text style={styles.bookingIdValue}>{bookingId}</Text>
           </View>
-          <Pressable style={styles.bookNowButton} onPress={onPress}>
+          {/* <Pressable style={styles.bookNowButton} onPress={onPress}>
             <Text style={styles.bookNowButtonText}>Book Now</Text>
-          </Pressable>
+          </Pressable> */}
         </View>
       </View>
     </View>
@@ -124,34 +198,74 @@ const BookingCard: React.FC<BookingCardProps> = ({
 const AllBookingScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
-  const [activeTab, setActiveTab] = useState<BookingStatus>('upcoming');
+  // const [activeTab, setActiveTab] = useState<BookingStatus>('upcoming');
+  const [activeTab, setActiveTab] =
+  useState<BookingStatus>('upcoming');
 
-  const bookings = [
+const [pendingBookings, setPendingBookings] =
+  useState<PendingEnquiry[]>([]);
+
+  useFocusEffect(
+  React.useCallback(() => {
+    const loadPendingBookings = async () => {
+      try {
+        const enquiries = await getPendingEnquiries();
+        setPendingBookings(enquiries);
+      } catch (e) {
+        console.log(e);
+      }
+    };
+
+    loadPendingBookings();
+  }, []),
+);
+
+  const bookings: BookingListItem[] = [
     {
       id: '1',
       spaName: 'Tiamoz Salon & Spa',
       location: 'Banjara Hills, Hyderabad',
-      service: 'Body Massage (60 mins)',
+      // service: 'Body Massage (60 mins)',
       people: '1 Person',
-      date: '01 July',
+      date: '20 July',
       time: '12:00 PM',
-      bookingId: 'TK987654',
+      bookingId: 'TK989879',
       status: 'upcoming' as BookingStatus,
     },
     {
       id: '2',
       spaName: 'Tiamoz Salon & Spa',
       location: 'Banjara Hills, Hyderabad',
-      service: 'Body Massage (60 mins)',
+      // service: 'Body Massage (60 mins)',
       people: '1 Person',
-      date: '04 July',
+      date: '24 July',
       time: '12:00 PM',
       bookingId: 'TK987654',
       status: 'upcoming' as BookingStatus,
     },
   ];
 
-  const filteredBookings = bookings.filter((b) => b.status === activeTab);
+  const enquiryCards: BookingListItem[] = pendingBookings.map(item => ({
+  id: item.id,
+  spaName: item.spaName,
+  location: item.location,
+  people: item.people || 'Awaiting Confirmation',
+  date: item.date || 'To be scheduled',
+  time: item.time || 'Our team will contact you',
+  bookingId: item.bookingId,
+  status: item.status as BookingStatus,
+  isPending: true,
+  note: item.note,
+  imageSource: item.spaImage ? { uri: item.spaImage } : undefined,
+}));
+
+  // const filteredBookings = bookings.filter((b) => b.status === activeTab);
+  const allUpcoming = [...enquiryCards, ...bookings];
+
+const filteredBookings: BookingListItem[] =
+  activeTab === 'upcoming'
+    ? allUpcoming
+    : bookings.filter(b => b.status === activeTab);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -194,7 +308,9 @@ const AllBookingScreen: React.FC = () => {
                 key={booking.id}
                 spaName={booking.spaName}
                 location={booking.location}
-                service={booking.service}
+                imageSource={booking.imageSource}
+                isPending={booking.isPending}
+                note={booking.note}
                 people={booking.people}
                 date={booking.date}
                 time={booking.time}

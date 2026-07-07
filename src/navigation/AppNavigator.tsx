@@ -9,6 +9,7 @@ import BottomNavigation from './BottomNavigation';
 import SplashScreen from '../screens/Splash/SplashScreen';
 import OnboardingScreen from '../screens/Onboarding/OnboardingScreen';
 import ExploreScreen from '../screens/Explore/ExploreScreen';
+import NoPaymentHistoryScreen from '../screens/Profile/NoPaymentHis';
 import AuthenticationScreen from '../authentication/screens/AuthenticationScreen';
 
 
@@ -33,7 +34,21 @@ export type RootStackParamList = {
     openEnquiry?: boolean;
   };
   AllBooking: undefined;
+  NoPayment: undefined;
   Login: { spaId?: string; serviceId?: string; serviceName?: string } | undefined;
+  Otp: {
+    phoneNumber: string;
+    spaId?: string;
+    serviceId?: string;
+    serviceName?: string;
+    /**
+     * True when the OTP flow was initiated from the Profile tab's embedded
+     * LoginScreen (not from a SpaDetails booking flow).
+     * After OTP success in this case, we navigate to BottomNavigation
+     * instead of SpaDetails or goBack().
+     */
+    isFromProfileTab?: boolean;
+  } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -85,6 +100,11 @@ const AppNavigator = () => {
         <Stack.Screen
             name="AllBooking"
             component={AllBookingScreen}
+        />
+
+        <Stack.Screen
+            name="NoPayment"
+            component={NoPaymentHistoryScreen}
         />
 
       </Stack.Navigator>

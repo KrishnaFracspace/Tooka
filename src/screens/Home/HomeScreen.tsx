@@ -318,7 +318,7 @@ const HomeScreen: React.FC = () => {
         <Text style={styles.greeting}>Good Morning, Ayra</Text>
         <Text style={styles.title}>Ready to relax and recharge?</Text>
 
-        <SearchBar
+        {/* <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
           onPressSearch={() => {
@@ -327,9 +327,9 @@ const HomeScreen: React.FC = () => {
           onPressFilter={() => {
             // TODO: Add filter screen navigation
           }}
-        />
+        /> */}
 
-        <FlatList<CategoryItem>
+        {/* <FlatList<CategoryItem>
           data={categories}
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -340,12 +340,12 @@ const HomeScreen: React.FC = () => {
           windowSize={3}
           removeClippedSubviews
           renderItem={renderCategoryItem}
-        />
+        /> */}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Curated for you</Text>
           <Pressable onPress={() => {}}>
-            <Text style={styles.sectionAction}>See all</Text>
+            {/* <Text style={styles.sectionAction}>See all</Text> */}
           </Pressable>
         </View>
 
@@ -505,7 +505,7 @@ const HomeScreen: React.FC = () => {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Available Right Now</Text>
           <Pressable onPress={() => {}}>
-            <Text style={styles.sectionAction}>See all</Text>
+            {/* <Text style={styles.sectionAction}>See all</Text> */}
           </Pressable>
         </View>
 
@@ -572,7 +572,7 @@ const HomeScreen: React.FC = () => {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Your wellness moment</Text>
           <Pressable onPress={() => {}}>
-            <Text style={styles.sectionAction}>Explore</Text>
+            {/* <Text style={styles.sectionAction}>Explore</Text> */}
           </Pressable>
         </View>
 
