@@ -3,9 +3,9 @@ import type { AuthActionResult } from '../types/auth';
 
 export const AUTH_COLORS = {
   primary: '#FFB02E',
-  background: '#FFF8F0',
+  background: '#FFF7EE',
   text: '#1F1F1F',
-  secondaryText: '#8D8D8D',
+  secondaryText: '#8f8f8f',
   border: '#E7E2DA',
   white: '#FFFFFF',
   error: '#D64545',

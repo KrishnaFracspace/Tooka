@@ -36,6 +36,7 @@ import AllBookingScreen from '../screens/Booking/AllBooking';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import LoginScreen from '../screens/Auth/Login';
 import { useAuth } from '../context/AuthContext';
+import AuthenticationScreen from '../authentication/screens/AuthenticationScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -182,7 +183,7 @@ function BookingTabScreen(): React.ReactElement {
   if (!isAuthenticated) {
     // Render LoginScreen in embedded mode — it hides the back button
     // and does not attempt to navigate backwards.
-    return <LoginScreen isEmbedded />;
+    return <AuthenticationScreen/>;
   }
 
   return <AllBookingScreen />;
@@ -212,7 +213,7 @@ function ProfileTabScreen(): React.ReactElement {
   if (!isAuthenticated) {
     // Render LoginScreen in embedded mode — it hides the back button
     // and does not attempt to navigate backwards.
-    return <LoginScreen isEmbedded />;
+    return <AuthenticationScreen/>;
   }
 
   return <ProfileScreen />;

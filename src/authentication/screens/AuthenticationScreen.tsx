@@ -29,6 +29,7 @@ import { AUTH_COLORS, AUTH_CONFIG, AUTH_TEXT, getKeyboardBehavior, saveName, sen
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useOtpTimer } from '../hooks/useOtpTimer';
 import type { AuthStep } from '../types/auth';
+import HeroSection from '../components/HeroSection';
 
 const AuthenticationScreen: React.FC = () => {
   const [step, setStep] = useState<AuthStep>('phone');
@@ -220,7 +221,11 @@ const AuthenticationScreen: React.FC = () => {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.flex}>
             <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <AuthHeader title={step === 'phone' ? AUTH_TEXT.title : step === 'otp' ? AUTH_TEXT.otpTitle : step === 'name' ? AUTH_TEXT.nameTitle : 'You’re all set'} subtitle={step === 'phone' ? AUTH_TEXT.subtitle : step === 'otp' ? AUTH_TEXT.otpSubtitle : step === 'name' ? AUTH_TEXT.nameSubtitle : 'Authentication complete'} />
+              <HeroSection/>
+              <AuthHeader 
+                title={step === 'phone' ? AUTH_TEXT.title : step === 'otp' ? AUTH_TEXT.otpTitle : step === 'name' ? AUTH_TEXT.nameTitle : 'You’re all set'} 
+                subtitle={step === 'phone' ? AUTH_TEXT.subtitle : step === 'otp' ? AUTH_TEXT.otpSubtitle : step === 'name' ? AUTH_TEXT.nameSubtitle : 'Authentication complete'}
+              />
               <AuthCard>
                 {/* <StepIndicator activeStep={stepIndex} /> */}
                 {renderBody()}
@@ -244,11 +249,11 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 0,
     paddingBottom: 28,
   },
   formCard: {
-    marginTop: 12,
+    marginTop: 0,
   },
   successCard: {
     marginTop: 12,

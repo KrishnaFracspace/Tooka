@@ -1,4 +1,5 @@
 import axiosClient from './axiosClient';
+import tookaAxiosClient from './tookaAxiosClient';
 import type { Spa } from '../types/spa';
 import type { SpaDetails } from '../types/spaDetails';
 
@@ -70,6 +71,24 @@ export const SpaApi = {
     );
 
     return response.data;
+  },
+
+  /**
+   * Search spas by query and city
+   */
+  searchSpas: async (query: string, cancelToken?: any): Promise<Spa[]> => {
+    const response = await tookaAxiosClient.get<ApiResponse<Spa[]>>(
+      '/spas/search',
+      {
+        params: {
+          q: query,
+          // city_id: query,
+        },
+        cancelToken,
+      },
+    );
+
+    return Array.isArray(response.data?.data) ? response.data.data : [];
   },
 };
 

@@ -64,9 +64,10 @@ type SpaMarkerProps = {
   onPress: (spa: ExploreSpa) => void;
 };
 
-const SpaMarker = memo<SpaMarkerProps>(({ spa, selected, onPress }) => {
+const SpaMarker = memo<SpaMarkerProps>(({ spa, selected, onPress, }) => {
   const pressScale = useRef(new Animated.Value(1)).current;
   const selectedScale = useRef(new Animated.Value(selected ? 1 : 0)).current;
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
     Animated.spring(selectedScale, {
@@ -107,7 +108,7 @@ const SpaMarker = memo<SpaMarkerProps>(({ spa, selected, onPress }) => {
     <Marker
       coordinate={{ latitude: spa.latitude, longitude: spa.longitude }}
       onPress={handlePress}
-      tracksViewChanges
+      tracksViewChanges={tracksViewChanges}
       anchor={{ x: 0.5, y: 0.9 }}>
       <Animated.View
         style={[
@@ -120,7 +121,16 @@ const SpaMarker = memo<SpaMarkerProps>(({ spa, selected, onPress }) => {
           <Text style={styles.markerRatingText}>{spa.rating.toFixed(1)}</Text>
         </View>
         <View style={styles.markerImageRing}>
-          <Image source={{ uri: spa.image }} style={styles.markerImage} />
+          {/* <Image source={{ uri: spa.image }} style={styles.markerImage} /> */}
+          <Image
+            source={{ uri: spa.image }}
+            style={styles.markerImage}
+            onLoadEnd={() => {
+              setTimeout(() => {
+                  setTracksViewChanges(false);
+              }, 300);
+          }}
+          />
         </View>
         <View style={styles.markerPointer} />
       </Animated.View>
@@ -138,6 +148,7 @@ const ExploreScreen: React.FC = () => {
   const listRef = useRef<FlatList<ExploreSpa> | null>(null);
   const sheetRef = useRef<BottomSheet | null>(null);
   const [sheetIndex, setSheetIndex] = useState(-1);
+  
 
   const origin = useMemo(
     () => ({
@@ -282,6 +293,14 @@ const ExploreScreen: React.FC = () => {
       { duration: 720 },
     );
   }, [origin]);
+
+  useEffect(() => {
+    spas.forEach(spa => {
+      if (spa.image) {
+        Image.prefetch(spa.image);
+      }
+    });
+  }, [spas]);
 
   useEffect(() => {
     if (!selectedSpaId && spas[0]) {
@@ -642,11 +661,11 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    shadowColor: '#000',
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    // shadowColor: '#000',
+    // shadowOpacity: 0.16,
+    // shadowRadius: 8,
+    // shadowOffset: { width: 0, height: 3 },
+    // elevation: 5,
   },
   markerRatingText: {
     marginLeft: 3,

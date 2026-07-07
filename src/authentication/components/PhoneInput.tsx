@@ -44,14 +44,14 @@ export const PhoneInput: React.FC<PhoneInputProps> = React.memo(({ value, onChan
 const styles = StyleSheet.create({
   wrapper: {
     width: '100%',
-    marginTop: 8,
+    marginTop: 10,
   },
   labelRow: {
-    marginBottom: 8,
+    marginBottom: 10,
   },
   label: {
     fontFamily: 'WorkSans-SemiBold',
-    fontSize: 13,
+    fontSize: 14,
     color: AUTH_COLORS.text,
   },
   row: {
@@ -59,9 +59,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: AUTH_COLORS.border,
-    borderRadius: 16,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     backgroundColor: AUTH_COLORS.white,
   },
   rowError: {
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     fontFamily: 'WorkSans-Regular',
     fontSize: 15,
     color: AUTH_COLORS.text,
-    paddingVertical: 0,
+    paddingVertical: 2,
   },
   error: {
     fontFamily: 'WorkSans-Regular',

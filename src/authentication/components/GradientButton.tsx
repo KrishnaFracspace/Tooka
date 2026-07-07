@@ -26,7 +26,7 @@ export const GradientButton: React.FC<GradientButtonProps> = React.memo(({ label
 const styles = StyleSheet.create({
   button: {
     backgroundColor: AUTH_COLORS.primary,
-    borderRadius: 999,
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
+    marginTop:20
   },
   buttonDisabled: {
     opacity: 0.6,
