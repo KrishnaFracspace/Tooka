@@ -31,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(session.token);
         setIsLoggedIn(true);
       }
+      // console.log('AuthContext hydrated:', session.token);
     } catch (error) {
       if (__DEV__) {
         console.warn('[AuthContext] hydration error:', error);

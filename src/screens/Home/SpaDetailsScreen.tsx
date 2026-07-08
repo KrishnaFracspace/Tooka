@@ -126,7 +126,9 @@ function SpaDetailsScreen(): React.ReactElement {
           onBookSpa={(currentSpaId, currentServiceId, currentServiceName) => {
 
               if (isAuthenticated) {
-                  setEnquiryVisible(true);
+                  // setEnquiryVisible(true);
+                  // return;
+                  navigation.navigate('BookingScreen');
                   return;
               }
 

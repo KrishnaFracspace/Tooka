@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/Home/HomeScreen';
 import SpaDetailsScreen from '../screens/Home/SpaDetailsScreen';
 import AllBookingScreen from '../screens/Booking/AllBooking';
+import BookingScreen from '../screens/Booking/BookingScreen';
 import BottomNavigation from './BottomNavigation';
 import SplashScreen from '../screens/Splash/SplashScreen';
 import OnboardingScreen from '../screens/Onboarding/OnboardingScreen';
@@ -34,6 +35,7 @@ export type RootStackParamList = {
     openEnquiry?: boolean;
   };
   AllBooking: undefined;
+  BookingScreen: undefined;
   NoPayment: undefined;
   Login: { spaId?: string; serviceId?: string; serviceName?: string } | undefined;
   Otp: {
@@ -100,6 +102,11 @@ const AppNavigator = () => {
         <Stack.Screen
             name="AllBooking"
             component={AllBookingScreen}
+        />
+
+        <Stack.Screen
+            name="BookingScreen"
+            component={BookingScreen}
         />
 
         <Stack.Screen

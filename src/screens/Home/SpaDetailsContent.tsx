@@ -421,30 +421,21 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
     return <SpaDetailsSkeleton />;
   }
 
-  if (error && spa === null) {
-    return (
-      <View style={styles.contentFallback}>
-        <StateMessage
-          title="Something went wrong"
-          subtitle={error}
-          actionLabel="Try Again"
-          onAction={onRetry ?? (() => undefined)}
-        />
-      </View>
-    );
-  }
+  // if (error && spa === null) {
+  //   return (
+  //     <View style={styles.contentFallback}>
+  //       <StateMessage
+  //         title="Something went wrong"
+  //         subtitle={error}
+  //         actionLabel="Try Again"
+  //         onAction={onRetry ?? (() => undefined)}
+  //       />
+  //     </View>
+  //   );
+  // }
 
   if (!spa) {
-    return (
-      <View style={styles.contentFallback}>
-        <StateMessage
-          title="Spa details not available."
-          subtitle="Please try again."
-          actionLabel="Retry"
-          onAction={onRetry ?? (() => undefined)}
-        />
-      </View>
-    );
+    return <SpaDetailsSkeleton />;
   }
 
   return (

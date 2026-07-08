@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     flex: 1,
-    marginTop: -40,
+    marginTop: -160,
     paddingHorizontal: 0,
   },
   card: {

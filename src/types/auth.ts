@@ -4,6 +4,7 @@ export interface AuthUser {
   fullName?: string;
   email?: string;
   phoneNumber: string;
+  phone?: string; // Keep for backward compatibility
 }
 
 export interface AuthContextValue {

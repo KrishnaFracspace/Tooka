@@ -1,3 +1,9 @@
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+}));
+
 import { normalizeSearchQuery, shouldSearchRequest } from '../src/hooks/useSpaSearch';
 
 describe('useSpaSearch helpers', () => {
