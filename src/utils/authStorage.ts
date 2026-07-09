@@ -1,20 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { AuthUser } from '../types/auth';
 
 export interface AuthSessionData {
   token: string | null;
-  user: {
-    id: string;
-    userName: string;
-    fullName?: string;
-    email?: string;
-    phoneNumber: string;
-  } | null;
+  user: AuthUser | null;
   isLoggedIn: boolean;
 }
 
 export async function writeAuthSession(
   token: string,
-  user: any,
+  user: AuthUser,
   isLoggedIn: boolean
 ): Promise<void> {
   try {
@@ -41,7 +36,7 @@ export async function readAuthSession(): Promise<AuthSessionData> {
       AsyncStorage.getItem('isLoggedIn'),
     ]);
 
-    let user = null;
+    let user: AuthUser | null = null;
     if (userRaw) {
       try {
         user = JSON.parse(userRaw);

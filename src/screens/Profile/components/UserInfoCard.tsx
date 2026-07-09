@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, useWindowDimensions, View } from 'react-native';
+import { ImageSourcePropType, Text, useWindowDimensions, View } from 'react-native';
 
 import ProfileAvatar from './ProfileAvatar';
 import { styles } from '../styles';
@@ -12,17 +12,19 @@ type Props = {
   name: string;
   email: string;
   phone: string;
+  avatarSource?: ImageSourcePropType;
   onEditPress?: () => void;
 };
 
-function UserInfoCard({ name, email, phone, onEditPress }: Props): React.ReactElement {
+function UserInfoCard({ name, email, phone, avatarSource, onEditPress }: Props): React.ReactElement {
   const { width } = useWindowDimensions();
   const compact = width < 390;
+  // console.log("User Profile: ", name, email, phone, avatarSource);
 
   return (
     <View style={[styles.userCard, compact && styles.compactUserCard]}>
       <View style={styles.userCardInner}>
-        <ProfileAvatar source={AVATAR} compact={compact} onEditPress={onEditPress} />
+        <ProfileAvatar source={avatarSource ?? AVATAR} compact={compact} onEditPress={onEditPress} />
         <View style={[styles.userMeta, compact && styles.compactMeta]}>
           <Text style={styles.userName} numberOfLines={1}>
             {name}

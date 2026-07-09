@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useCallback, useMemo, useRef } from 'react';
-import { Alert, Linking, ScrollView, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +23,7 @@ import VersionInfo from './components/VersionInfo';
 import type { MenuItemConfig } from './components/MenuItem';
 import { styles } from './styles';
 import { useAuth } from '../../context/AuthContext';
+import { useProfile } from '../../context/ProfileContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BottomNavigation'>;
@@ -46,14 +47,21 @@ const ProfileScreen: React.FC = () => {
   const isTablet = width >= 768;
   const navigation = useNavigation<ProfileNavigationProp>();
   const { user, logout } = useAuth();
-  // console.log('[ProfileScreen] Render. User:', user);
+  const { profile, loading: profileLoading } = useProfile();
 
   const isLoggingOut = useRef<boolean>(false);
   const isDeletingAccount = useRef<boolean>(false);
 
-  const displayName = user?.userName?.trim() || user?.fullName?.trim() || 'Guest User';
-  const displayEmail = user?.email?.trim() || 'Not provided';
-  const displayPhone = normalizePhone(user?.phone);
+  const displayName =
+    profile?.displayName?.trim() ||
+    profile?.fullName?.trim() ||
+    profile?.username?.trim() ||
+    user?.userName?.trim() ||
+    user?.fullName?.trim() ||
+    'No Name';
+  const displayEmail = profile?.email?.trim() || user?.email?.trim() || 'Add your email';
+  const displayPhone = normalizePhone(profile?.phone ?? user?.phone ?? user?.phoneNumber);
+  const avatarSource = profile?.avatarUrl ? { uri: profile.avatarUrl } : undefined;
 
   const showUnavailableToast = useCallback((title: string) => {
     Toast.show({
@@ -74,9 +82,6 @@ const ProfileScreen: React.FC = () => {
 
       showUnavailableToast(fallbackTitle);
     } catch (error) {
-      if (__DEV__) {
-        console.warn('[ProfileScreen] openExternalUrl error:', error);
-      }
       showUnavailableToast(fallbackTitle);
     }
   }, [showUnavailableToast]);
@@ -96,9 +101,6 @@ const ProfileScreen: React.FC = () => {
         routes: [{ name: 'BottomNavigation' }],
       });
     } catch (error) {
-      if (__DEV__) {
-        console.warn('[ProfileScreen] logout error:', error);
-      }
       Toast.show({
         type: 'error',
         text1: 'Logout failed',
@@ -135,18 +137,12 @@ const ProfileScreen: React.FC = () => {
               // TODO: Integrate delete-account API when backend endpoint is ready.
               // After successful API deletion, call logout() and reset navigation
               // to BottomNavigation exactly like handleLogout().
-              if (__DEV__) {
-                console.log('[ProfileScreen] handleDeleteAccount TODO for user:', user?.id);
-              }
               Toast.show({
                 type: 'info',
                 text1: 'Delete Account',
                 text2: 'This feature will be available soon.',
               });
             } catch (error) {
-              if (__DEV__) {
-                console.warn('[ProfileScreen] deleteAccount error:', error);
-              }
               Toast.show({
                 type: 'error',
                 text1: 'Delete failed',
@@ -165,7 +161,7 @@ const ProfileScreen: React.FC = () => {
         },
       },
     );
-  }, [user?.id]);
+  }, [profile?.id, user?.id]);
 
   const menuItems = useMemo<MenuItemConfig[]>(
     () => [
@@ -220,12 +216,19 @@ const ProfileScreen: React.FC = () => {
       >
         <ProfileHeader onNotificationPress={() => showUnavailableToast('Notifications')} />
         <View style={styles.root}>
-          <UserInfoCard
-            name={displayName}
-            email={displayEmail}
-            phone={displayPhone}
-            onEditPress={() => showUnavailableToast('Edit Profile')}
-          />
+          {profileLoading && !profile ? (
+            <View style={styles.loadingProfileBlock}>
+              <ActivityIndicator size="large" color="#FFAE2B" />
+            </View>
+          ) : (
+            <UserInfoCard
+              name={displayName}
+              email={displayEmail}
+              phone={displayPhone}
+              avatarSource={avatarSource}
+              onEditPress={() => navigation.navigate('EditProfile')}
+            />
+          )}
 
           <View style={styles.supportRow}>
             <SupportCard

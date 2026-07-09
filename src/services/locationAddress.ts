@@ -14,7 +14,7 @@ export interface LocationDisplayParts {
   isLoading: boolean;
 }
 
-const GOOGLE_GEOCODING_API_KEY = 'AIzaSyA3ZlDDtq14fvyne4xX1eXDWn9QKsIRsjw';
+export const GOOGLE_GEOCODING_API_KEY = 'AIzaSyBfg626Ov6GA68lNdJp36I9r11dxEG0K4Q';
 const LOCATION_CACHE_TTL_MS = 10 * 60 * 1000;
 
 const normalizeValue = (value?: string | null): string | null => {

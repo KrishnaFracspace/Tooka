@@ -7,6 +7,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/context/AuthContext';
 import { LocationProvider } from './src/context/LocationContext';
 import { NearbySpaProvider } from './src/context/NearbySpaContext';
+import { ProfileProvider } from './src/context/ProfileContext';
 
 function App() {
   return (
@@ -14,9 +15,11 @@ function App() {
       <SafeAreaProvider>
         <AuthProvider>
           <LocationProvider>
-            <NearbySpaProvider>
-              <AppNavigator />
-            </NearbySpaProvider>
+            <ProfileProvider>
+              <NearbySpaProvider>
+                <AppNavigator />
+              </NearbySpaProvider>
+            </ProfileProvider>
           </LocationProvider>
         </AuthProvider>
         <Toast />

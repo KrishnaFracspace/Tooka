@@ -36,6 +36,11 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  loadingProfileBlock: {
+    minHeight: 220,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollContent: {
     paddingBottom: 116,
   },
