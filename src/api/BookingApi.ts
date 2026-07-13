@@ -6,6 +6,8 @@ import type {
   BookingSlot,
   BookingSlotStatus,
   DirectBookingResponse,
+  MyBookingsApiResponse,
+  MyBookingsResult,
 } from '../types/booking';
 
 type AvailabilityStatus = BookingSlotStatus | string | null | undefined;
@@ -174,17 +176,24 @@ const asRecord = (value: unknown): BackendBookingRecord | undefined =>
     ? (value as BackendBookingRecord)
     : undefined;
 
-const asStatus = (value: unknown): BookingStatus => {
-  if (
-    value === 'pending' ||
-    value === 'upcoming' ||
-    value === 'completed' ||
-    value === 'cancelled'
-  ) {
-    return value;
-  }
+const asBackendStatus = (value: unknown): string => {
+  const status = asString(value);
+  return status ?? 'unknown';
+};
 
-  return 'upcoming';
+const dedupeBookings = (
+  items: BackendBookingListItem[],
+): BackendBookingListItem[] => {
+  const seen = new Set<string>();
+
+  return items.filter(item => {
+    if (seen.has(item.id)) {
+      return false;
+    }
+
+    seen.add(item.id);
+    return true;
+  });
 };
 
 const formatDisplayDate = (value: string | undefined): string => {
@@ -237,6 +246,9 @@ const toBackendBookingListItem = (
   booking: BackendBookingRecord,
 ): BackendBookingListItem => {
   const spa = asRecord(booking.spa) ?? asRecord(booking.spa_details);
+  const service =
+    asRecord(booking.service) ?? asRecord(booking.service_details);
+  const pricing = asRecord(booking.pricing);
   const location =
     asString(booking.location) ??
     asString(spa?.location) ??
@@ -253,6 +265,16 @@ const toBackendBookingListItem = (
     typeof guestCountRaw === 'number'
       ? guestCountRaw
       : Number(asString(guestCountRaw) ?? NaN);
+  const price =
+    booking.price ??
+    booking.amount ??
+    pricing?.total ??
+    pricing?.amount ??
+    null;
+  const currency =
+    asString(booking.currency) ??
+    asString(pricing?.currency) ??
+    null;
 
   return {
     id:
@@ -266,18 +288,28 @@ const toBackendBookingListItem = (
       asString(booking.spa_name) ??
       asString(booking.spaName) ??
       asString(spa?.name) ??
-      'Spa booking',
+      'Spa unavailable',
     spaImage:
       asString(booking.spa_image) ??
       asString(booking.spaImage) ??
       asString(spa?.cover_photo_url),
+    serviceName:
+      asString(booking.service_name) ??
+      asString(booking.serviceName) ??
+      asString(service?.name) ??
+      null,
     location,
     guestCount: Number.isFinite(guestCount) ? guestCount : null,
     appointmentAt,
     date: formatDisplayDate(appointmentAt),
     time: formatDisplayTime(appointmentAt),
-    status: asStatus(booking.status),
-    pricing: asRecord(booking.pricing),
+    status: asBackendStatus(booking.status),
+    paymentStatus:
+      asString(booking.payment_status) ?? asString(booking.paymentStatus),
+    price:
+      typeof price === 'number' || typeof price === 'string' ? price : null,
+    currency,
+    pricing,
     raw: booking,
   };
 };
@@ -358,6 +390,41 @@ export const BookingApi = {
       items: records.map(toBackendBookingListItem),
       page,
       hasMore: hasMorePages(response.data, page, records.length, limit),
+    };
+  },
+
+  getMyBookings: async ({
+    signal,
+  }: {
+    signal?: AbortSignal;
+  } = {}): Promise<MyBookingsResult> => {
+    const response = await authAxiosClient.get<MyBookingsApiResponse>(
+      '/bookings/user/my-bookings',
+      { signal },
+    );
+
+    const payload = response.data;
+
+    if (payload.success === false) {
+      throw new Error(
+        typeof payload.message === 'string' && payload.message.trim()
+          ? payload.message
+          : 'Unable to load bookings.',
+      );
+    }
+
+    const rows = payload.data?.rows;
+
+    if (rows == null) {
+      return { items: [] };
+    }
+
+    if (!Array.isArray(rows)) {
+      throw new Error('Unexpected booking response.');
+    }
+
+    return {
+      items: dedupeBookings(rows.map(toBackendBookingListItem)),
     };
   },
 };

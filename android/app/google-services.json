@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "774751960396",
+    "project_id": "tooka-f6536",
+    "storage_bucket": "tooka-f6536.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:774751960396:android:0be1ff41e5810bddf3e3e9",
+        "android_client_info": {
+          "package_name": "com.fracspace.tooka"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCuDEe-gMrJ0TNRq94vzZ5GrrMplLRwA_8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

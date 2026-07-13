@@ -1,5 +1,22 @@
 export type BookingStatus = 'pending' | 'upcoming' | 'completed' | 'cancelled';
 
+export type BookingSection = 'upcoming' | 'completed' | 'cancelled';
+
+export const BOOKING_STATUS = {
+  PENDING_PAYMENT: 'pending_payment',
+  CONFIRMED: 'confirmed',
+  CHECKED_IN: 'checked_in',
+  COMPLETED: 'completed',
+  CANCELLED_BY_USER: 'cancelled_by_user',
+  CANCELLED_BY_SPA: 'cancelled_by_spa',
+  NO_SHOW: 'no_show',
+  REFUNDED: 'refunded',
+  DISPUTED: 'disputed',
+} as const;
+
+export type BackendBookingStatus =
+  (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS];
+
 export type BookingSlotStatus = 'available' | 'booked' | 'blocked';
 
 export interface BookingScheduleDate {
@@ -37,12 +54,16 @@ export interface BackendBookingListItem {
   bookingReference?: string | null;
   spaName: string;
   spaImage?: string | null;
+  serviceName?: string | null;
   location: string;
   guestCount: number | null;
   appointmentAt?: string | null;
   date: string;
   time: string;
-  status: BookingStatus;
+  status: string;
+  paymentStatus?: string | null;
+  price?: number | string | null;
+  currency?: string | null;
   pricing?: BookingPricing | null;
   raw: Record<string, unknown>;
 }
@@ -51,4 +72,16 @@ export interface BookingListResult {
   items: BackendBookingListItem[];
   page: number;
   hasMore: boolean;
+}
+
+export interface MyBookingsResult {
+  items: BackendBookingListItem[];
+}
+
+export interface MyBookingsApiResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    rows?: Record<string, unknown>[] | null;
+  };
 }

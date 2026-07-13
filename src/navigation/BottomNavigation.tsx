@@ -178,8 +178,6 @@ function CustomTabBar({
 function BookingTabScreen(): React.ReactElement {
   const { isAuthenticated, loading } = useAuth();
 
-  console.log('BookingTabScreen - isAuthenticated:', isAuthenticated, 'loading:', loading);
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>

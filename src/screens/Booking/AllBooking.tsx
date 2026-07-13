@@ -1,6 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Image,
   Pressable,
@@ -13,23 +12,19 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import axios from 'axios';
 
-import BookingApi from '../../api/BookingApi';
-import type {
-  BackendBookingListItem,
-  BookingStatus,
-} from '../../types/booking';
+import FullScreenLoader from '../../components/loaders/FullScreenLoader';
+import { useMyBookings } from '../../hooks/useMyBookings';
+import type { BackendBookingListItem, BookingSection } from '../../types/booking';
+import { getBookingSection } from '../../utils/getBookingSection';
+import { getBookingStatusBadgeLabel } from '../../utils/getBookingStatusBadgeLabel';
+import { getPaymentStatusLabel } from '../../utils/getPaymentStatusLabel';
 
 const BOOKING_IMAGE = {
   uri: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=60',
 };
 
-type BookingTab = Extract<
-  BookingStatus,
-  'upcoming' | 'completed' | 'cancelled'
->;
+type BookingTab = BookingSection;
 
 type TabButtonProps = {
   label: string;
@@ -43,62 +38,49 @@ type BookingCardProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-const PAGE_SIZE = 20;
-
-const TABS: Array<{ label: string; status: BookingTab }> = [
-  { label: 'Upcoming', status: 'upcoming' },
-  { label: 'Completed', status: 'completed' },
-  { label: 'Cancelled', status: 'cancelled' },
+const TABS: Array<{ label: string; section: BookingTab }> = [
+  { label: 'Upcoming', section: 'upcoming' },
+  { label: 'Completed', section: 'completed' },
+  { label: 'Cancelled', section: 'cancelled' },
 ];
 
-const getErrorMessage = (error: unknown): string => {
-  if (axios.isCancel(error)) {
-    return '';
-  }
-
-  if (axios.isAxiosError(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === 'string' && message.trim()) {
-      return message;
-    }
-
-    if (error.message.toLowerCase().includes('network')) {
-      return 'You are offline. Please check your internet connection.';
-    }
-  }
-
-  return 'Unable to load bookings. Please try again.';
+const EMPTY_STATE_MESSAGES: Record<BookingTab, string> = {
+  upcoming: 'No upcoming bookings',
+  completed: 'No completed bookings',
+  cancelled: 'No cancelled bookings',
 };
 
-const TabButton: React.FC<TabButtonProps> = ({
+const TabButton = React.memo<TabButtonProps>(function TabButton({
   label,
   isActive,
   onPress,
   style,
-}) => (
-  <Pressable
-    onPress={onPress}
-    style={[styles.tabButton, isActive && styles.tabButtonActive, style]}
-    android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
-  >
-    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-      {label}
-    </Text>
-  </Pressable>
-);
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.tabButton, isActive && styles.tabButtonActive, style]}
+      android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
+    >
+      <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+});
 
-const BookingCard: React.FC<BookingCardProps> = ({ booking, style }) => {
-  const statusLabel =
-    booking.status === 'upcoming'
-      ? 'Confirmed'
-      : booking.status === 'completed'
-      ? 'Completed'
-      : 'Cancelled';
-  const statusColor = booking.status === 'cancelled' ? '#C85A54' : '#2E8B57';
+const BookingCard = React.memo<BookingCardProps>(function BookingCard({
+  booking,
+  style,
+}) {
+  const statusLabel = getBookingStatusBadgeLabel(booking.status);
+  const statusColor =
+    getBookingSection(booking.status) === 'cancelled' ? '#C85A54' : '#2E8B57';
   const people = booking.guestCount
     ? `${booking.guestCount} ${booking.guestCount === 1 ? 'Person' : 'People'}`
     : 'Guest details pending';
   const bookingCode = booking.bookingReference ?? booking.bookingId;
+  const paymentStatusLabel = getPaymentStatusLabel(booking.paymentStatus);
 
   return (
     <View style={[styles.bookingCard, style]}>
@@ -151,112 +133,49 @@ const BookingCard: React.FC<BookingCardProps> = ({ booking, style }) => {
             </Text>
           </View>
         </View>
+
+        <View style={styles.detailRow}>
+          <Text style={styles.detailIcon}>💳</Text>
+          <Text style={styles.detailText}>{paymentStatusLabel}</Text>
+        </View>
       </View>
     </View>
   );
-};
+});
 
 const AllBookingScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
-  const requestControllerRef = useRef<AbortController | null>(null);
-  const requestIdRef = useRef(0);
   const [activeTab, setActiveTab] = useState<BookingTab>('upcoming');
-  const [bookings, setBookings] = useState<BackendBookingListItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadBookings = useCallback(
-    async (options?: {
-      page?: number;
-      refresh?: boolean;
-      append?: boolean;
-    }) => {
-      const nextPage = options?.page ?? 1;
-      const append = options?.append ?? false;
-      const refresh = options?.refresh ?? false;
+  const {
+    upcomingBookings,
+    completedBookings,
+    cancelledBookings,
+    loading,
+    refreshing,
+    error,
+    hasFetchedOnce,
+    refetch,
+    onRefresh,
+  } = useMyBookings();
 
-      requestControllerRef.current?.abort();
-      const controller = new AbortController();
-      requestControllerRef.current = controller;
-      const requestId = requestIdRef.current + 1;
-      requestIdRef.current = requestId;
-
-      if (append) {
-        setLoadingMore(true);
-      } else if (refresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      try {
-        const result = await BookingApi.getBookingHistory({
-          status: activeTab,
-          page: nextPage,
-          limit: PAGE_SIZE,
-          signal: controller.signal,
-        });
-
-        if (requestIdRef.current !== requestId) {
-          return;
-        }
-
-        setPage(result.page);
-        setHasMore(result.hasMore);
-        setBookings(current =>
-          append ? [...current, ...result.items] : result.items,
-        );
-      } catch (loadError) {
-        if (controller.signal.aborted || axios.isCancel(loadError)) {
-          return;
-        }
-
-        if (requestIdRef.current === requestId) {
-          setError(getErrorMessage(loadError));
-          if (!append) {
-            setBookings([]);
-            setHasMore(false);
-          }
-        }
-      } finally {
-        if (requestIdRef.current === requestId) {
-          setLoading(false);
-          setRefreshing(false);
-          setLoadingMore(false);
-          requestControllerRef.current = null;
-        }
-      }
-    },
-    [activeTab],
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      loadBookings();
-
-      return () => {
-        requestControllerRef.current?.abort();
-      };
-    }, [loadBookings]),
-  );
-
-  const handleRefresh = useCallback(() => {
-    loadBookings({ page: 1, refresh: true });
-  }, [loadBookings]);
-
-  const handleEndReached = useCallback(() => {
-    if (!hasMore || loading || refreshing || loadingMore) {
-      return;
+  const activeBookings = useMemo(() => {
+    switch (activeTab) {
+      case 'upcoming':
+        return upcomingBookings;
+      case 'completed':
+        return completedBookings;
+      case 'cancelled':
+        return cancelledBookings;
+      default:
+        return upcomingBookings;
     }
+  }, [activeTab, upcomingBookings, completedBookings, cancelledBookings]);
 
-    loadBookings({ page: page + 1, append: true });
-  }, [hasMore, loadBookings, loading, loadingMore, page, refreshing]);
+  const handleTabPress = useCallback((section: BookingTab) => {
+    setActiveTab(section);
+  }, []);
 
   const renderBooking = useCallback(
     ({ item, index }: { item: BackendBookingListItem; index: number }) => (
@@ -272,86 +191,87 @@ const AllBookingScreen: React.FC = () => {
     [isTablet],
   );
 
+  const keyExtractor = useCallback(
+    (item: BackendBookingListItem) => item.id,
+    [],
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <>
+        <View
+          style={[styles.tabContainer, isTablet && styles.tabContainerTablet]}
+        >
+          {TABS.map((tab, index) => (
+            <TabButton
+              key={tab.section}
+              label={tab.label}
+              isActive={activeTab === tab.section}
+              onPress={() => handleTabPress(tab.section)}
+              style={index === 1 ? styles.tabButtonMiddle : undefined}
+            />
+          ))}
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            {activeTab === 'upcoming' && 'Upcoming Bookings'}
+            {activeTab === 'completed' && 'Completed Bookings'}
+            {activeTab === 'cancelled' && 'Cancelled Bookings'}
+          </Text>
+        </View>
+      </>
+    ),
+    [activeTab, handleTabPress, isTablet],
+  );
+
+  const listEmpty = useMemo(() => {
+    if (error) {
+      return (
+        <View style={styles.stateContainer}>
+          <Text style={styles.stateTitle}>Unable to load bookings</Text>
+          <Text style={styles.stateText}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={refetch}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.stateContainer}>
+        <Text style={styles.stateTitle}>{EMPTY_STATE_MESSAGES[activeTab]}</Text>
+      </View>
+    );
+  }, [activeTab, error, refetch]);
+
+  if (loading && !hasFetchedOnce) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <FullScreenLoader />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
-        data={bookings}
+        data={activeBookings}
         key={isTablet ? 'tablet' : 'phone'}
         numColumns={isTablet ? 2 : 1}
-        keyExtractor={item => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderBooking}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
             tintColor="#FFB02E"
           />
         }
-        onEndReached={handleEndReached}
-        onEndReachedThreshold={0.35}
-        ListHeaderComponent={
-          <>
-            <View
-              style={[
-                styles.tabContainer,
-                isTablet && styles.tabContainerTablet,
-              ]}
-            >
-              {TABS.map((tab, index) => (
-                <TabButton
-                  key={tab.status}
-                  label={tab.label}
-                  isActive={activeTab === tab.status}
-                  onPress={() => setActiveTab(tab.status)}
-                  style={index === 1 && styles.tabButtonMiddle}
-                />
-              ))}
-            </View>
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {activeTab === 'upcoming' && 'Upcoming Bookings'}
-                {activeTab === 'completed' && 'Completed Bookings'}
-                {activeTab === 'cancelled' && 'Cancelled Bookings'}
-              </Text>
-            </View>
-          </>
-        }
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.stateContainer}>
-              <ActivityIndicator color="#FFB02E" />
-              <Text style={styles.stateText}>Loading bookings...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.stateContainer}>
-              <Text style={styles.stateTitle}>Unable to load bookings</Text>
-              <Text style={styles.stateText}>{error}</Text>
-              <Pressable
-                style={styles.retryButton}
-                onPress={() => loadBookings()}
-              >
-                <Text style={styles.retryButtonText}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.stateContainer}>
-              <Text style={styles.stateTitle}>No {activeTab} bookings</Text>
-              <Text style={styles.stateText}>
-                Your bookings from Tooka will appear here.
-              </Text>
-            </View>
-          )
-        }
-        ListFooterComponent={
-          loadingMore ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator color="#FFB02E" />
-            </View>
-          ) : null
-        }
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
       />
     </SafeAreaView>
   );
@@ -366,6 +286,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 120,
     paddingTop: 20,
+    flexGrow: 1,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -544,9 +465,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 14,
-  },
-  footerLoader: {
-    paddingVertical: 20,
   },
 });
 
