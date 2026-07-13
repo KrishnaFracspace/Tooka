@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { COLORS, FONTS } from './constants';
 
 export const shadow = {
@@ -7,6 +7,19 @@ export const shadow = {
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 6 },
   elevation: 2,
+};
+
+export const colors = {
+  background: '#FFF8F1',
+  card: '#FFFFFF',
+  primary: '#FFAE2B',
+  primaryDark: '#F59C00',
+  primaryLight: '#FFD56A',
+  heading: '#1E1E1E',
+  body: '#6D6D6D',
+  white: '#FFFFFF',
+  link: '#FFAE2B',
+  backBtnBg: 'rgba(0, 0, 0, 0.18)',
 };
 
 export const styles = StyleSheet.create({
@@ -39,6 +52,19 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 48,
   },
+  backButton: {
+      position: 'absolute',
+      left: 16,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.backBtnBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backButtonPressed: {
+      opacity: Platform.OS === 'ios' ? 0.7 : 1,
+    },
   headerCircleLarge: {
     position: 'absolute',
     width: 330,

@@ -5,7 +5,11 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  type RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import SpaDetailsContent from './SpaDetailsContent';
@@ -18,7 +22,10 @@ import EnquirySuccessModal from '../../components/EnquirySuccessModal';
 import { useEnquiry } from '../../hooks/useEnquiry';
 import type { EnquiryFormValues } from '../../types/Enquiry';
 
-type SpaDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SpaDetails'>;
+type SpaDetailsNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'SpaDetails'
+>;
 type SpaDetailsRouteProp = RouteProp<RootStackParamList, 'SpaDetails'>;
 
 function SpaDetailsScreen(): React.ReactElement {
@@ -27,19 +34,21 @@ function SpaDetailsScreen(): React.ReactElement {
   const { spaId, serviceId, serviceName, openEnquiry } = route.params;
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
-  const { spa, loading: spaLoading, refreshing, error, refetch, onRefresh } = useSpaDetails(spaId);
+  const { spa, refreshing, error, refetch, onRefresh } = useSpaDetails(spaId);
   const { isAuthenticated, user } = useAuth();
   const [enquiryVisible, setEnquiryVisible] = useState(false);
 
-  const [selectedService, setSelectedService] = useState<{ id?: string; name?: string }>({
-      id: serviceId,
-      name: serviceName,
-    });
-  
-    useEffect(() => {
-      setSelectedService({ id: serviceId, name: serviceName });
-    }, [serviceId, serviceName]);
-  
+  const [selectedService, setSelectedService] = useState<{
+    id?: string;
+    name?: string;
+  }>({
+    id: serviceId,
+    name: serviceName,
+  });
+
+  useEffect(() => {
+    setSelectedService({ id: serviceId, name: serviceName });
+  }, [serviceId, serviceName]);
 
   useEffect(() => {
     if (openEnquiry) {
@@ -47,18 +56,18 @@ function SpaDetailsScreen(): React.ReactElement {
     }
   }, [navigation, openEnquiry]);
 
-//   useEffect(() => {
-//   console.log('SPA DATA', spa);
-// }, [spa]);
+  //   useEffect(() => {
+  //   console.log('SPA DATA', spa);
+  // }, [spa]);
 
   const enquiryDefaults = useMemo(
-      () => ({
-        name: user?.userName ?? '',
-        email: user?.email ?? '',
-        message: '',
-      }),
-      [user?.userName, user?.email],
-    );
+    () => ({
+      name: user?.userName ?? '',
+      email: user?.email ?? '',
+      message: '',
+    }),
+    [user?.userName, user?.email],
+  );
 
   const enquiryContext = useMemo(
     () => ({
@@ -69,10 +78,24 @@ function SpaDetailsScreen(): React.ReactElement {
       serviceId: selectedService.id,
       serviceName: selectedService.name,
     }),
-    [spa?.city_name, spa?.cover_photo_url, spa?.locality_name, spa?.name, selectedService.id, selectedService.name, spaId],
+    [
+      spa?.city_name,
+      spa?.cover_photo_url,
+      spa?.locality_name,
+      spa?.name,
+      selectedService.id,
+      selectedService.name,
+      spaId,
+    ],
   );
 
-  const { loading: enquiryLoading, success, submitEnquiry, reset, closeSuccess } = useEnquiry({
+  const {
+    loading: enquiryLoading,
+    success,
+    submitEnquiry,
+    reset,
+    closeSuccess,
+  } = useEnquiry({
     spa: enquiryContext,
     onSuccess: () => {
       setEnquiryVisible(false);
@@ -103,9 +126,18 @@ function SpaDetailsScreen(): React.ReactElement {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={[styles.container, isTablet && styles.containerTablet]}
+        contentContainerStyle={[
+          styles.container,
+          isTablet && styles.containerTablet,
+        ]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFAA26" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFAA26"
+          />
+        }
       >
         <SpaDetailsContent
           spa={spa}
@@ -124,19 +156,31 @@ function SpaDetailsScreen(): React.ReactElement {
           //   });
           // }}
           onBookSpa={(currentSpaId, currentServiceId, currentServiceName) => {
-
-              if (isAuthenticated) {
-                  // setEnquiryVisible(true);
-                  // return;
-                  navigation.navigate('BookingScreen');
-                  return;
-              }
-
-              navigation.navigate('Login', {
-                  spaId: currentSpaId,
-                  serviceId: currentServiceId,
-                  serviceName: currentServiceName,
+            if (isAuthenticated) {
+              // setEnquiryVisible(true);
+              // return;
+              const service = spa?.services?.find(
+                item => item.id === currentServiceId,
+              );
+              navigation.navigate('BookingScreen', {
+                spaId: currentSpaId,
+                spaName: spa?.name,
+                spaImage:
+                  service?.cover_image_url ?? spa?.cover_photo_url ?? undefined,
+                location: spa?.locality_name ?? spa?.city_name ?? undefined,
+                serviceId: currentServiceId,
+                serviceName: currentServiceName ?? service?.name,
+                serviceDurationMinutes: service?.duration_minutes ?? null,
+                servicePrice: service?.base_price ?? null,
               });
+              return;
+            }
+
+            navigation.navigate('Login', {
+              spaId: currentSpaId,
+              serviceId: currentServiceId,
+              serviceName: currentServiceName,
+            });
           }}
           onBack={() => navigation.goBack()}
         />

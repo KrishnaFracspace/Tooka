@@ -1,39 +1,35 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  ScrollView,
-  View,
-  Text,
+  ActivityIndicator,
+  FlatList,
   Image,
   Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  ViewStyle,
+  RefreshControl,
   StyleProp,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { getPendingEnquiries } from '../../services/enquiryStorage';
-import type { PendingEnquiry } from '../../types/Enquiry';
+import axios from 'axios';
+
+import BookingApi from '../../api/BookingApi';
+import type {
+  BackendBookingListItem,
+  BookingStatus,
+} from '../../types/booking';
 
 const BOOKING_IMAGE = {
   uri: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=60',
 };
 
-type BookingStatus = 'upcoming' | 'completed' | 'cancelled';
-
-type BookingListItem = {
-  id: string;
-  spaName: string;
-  location: string;
-  people: string;
-  date: string;
-  time: string;
-  bookingId: string;
-  status: BookingStatus;
-  isPending?: boolean;
-  note?: string;
-  imageSource?: { uri: string };
-};
+type BookingTab = Extract<
+  BookingStatus,
+  'upcoming' | 'completed' | 'cancelled'
+>;
 
 type TabButtonProps = {
   label: string;
@@ -42,102 +38,92 @@ type TabButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-const TabButton: React.FC<TabButtonProps> = ({ label, isActive, onPress, style }) => (
-<Pressable
+type BookingCardProps = {
+  booking: BackendBookingListItem;
+  style?: StyleProp<ViewStyle>;
+};
+
+const PAGE_SIZE = 20;
+
+const TABS: Array<{ label: string; status: BookingTab }> = [
+  { label: 'Upcoming', status: 'upcoming' },
+  { label: 'Completed', status: 'completed' },
+  { label: 'Cancelled', status: 'cancelled' },
+];
+
+const getErrorMessage = (error: unknown): string => {
+  if (axios.isCancel(error)) {
+    return '';
+  }
+
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+
+    if (error.message.toLowerCase().includes('network')) {
+      return 'You are offline. Please check your internet connection.';
+    }
+  }
+
+  return 'Unable to load bookings. Please try again.';
+};
+
+const TabButton: React.FC<TabButtonProps> = ({
+  label,
+  isActive,
+  onPress,
+  style,
+}) => (
+  <Pressable
     onPress={onPress}
     style={[styles.tabButton, isActive && styles.tabButtonActive, style]}
     android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
   >
-    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{label}</Text>
+    <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+      {label}
+    </Text>
   </Pressable>
 );
 
-// type BookingCardProps = {
-//   spaName: string;
-//   location: string;
-//   // service: string;
-//   people: string;
-//   date: string;
-//   time: string;
-//   bookingId: string;
-//   status: BookingStatus;
-//   imageSource?: { uri: string };
-//   onPress?: () => void;
-//   style?: StyleProp<ViewStyle>;
-// };
-type BookingCardProps = {
-  spaName: string;
-  location: string;
-  people: string;
-  date: string;
-  time: string;
-  bookingId: string;
-  status: BookingStatus;
-
-  isPending?: boolean;      // <-- ADD THIS
-  note?: string;            // <-- ADD THIS
-
-  imageSource?: { uri: string };
-  onPress?: () => void;
-  style?: StyleProp<ViewStyle>;
-};
-
-const BookingCard: React.FC<BookingCardProps> = ({
-  spaName,
-  location,
-  // service,
-  people,
-  date,
-  time,
-  bookingId,
-  isPending = false,     // <-- ADD
-  note,
-  status,
-  imageSource,
-  onPress,
-  style,
-}) => {
-  // const statusLabel =
-  //   status === 'upcoming' ? 'Confirmed' : status === 'completed' ? 'Completed' : 'Cancelled';
-
-    const statusLabel = isPending
-  ? 'Pending'
-  : status === 'upcoming'
-  ? 'Confirmed'
-  : status === 'completed'
-  ? 'Completed'
-  : 'Cancelled';
-  // const statusColor =
-  //   status === 'upcoming' ? '#FFB02E' : status === 'completed' ? '#2E8B57' : '#C85A54';
-  const statusColor = isPending
-  ? '#FF9800'
-  : status === 'upcoming'
-  ? '#2E8B57'
-  : status === 'completed'
-  ? '#2E8B57'
-  : '#C85A54';
+const BookingCard: React.FC<BookingCardProps> = ({ booking, style }) => {
+  const statusLabel =
+    booking.status === 'upcoming'
+      ? 'Confirmed'
+      : booking.status === 'completed'
+      ? 'Completed'
+      : 'Cancelled';
+  const statusColor = booking.status === 'cancelled' ? '#C85A54' : '#2E8B57';
+  const people = booking.guestCount
+    ? `${booking.guestCount} ${booking.guestCount === 1 ? 'Person' : 'People'}`
+    : 'Guest details pending';
+  const bookingCode = booking.bookingReference ?? booking.bookingId;
 
   return (
     <View style={[styles.bookingCard, style]}>
       <View style={styles.cardImageContainer}>
-        <Image source={imageSource ?? BOOKING_IMAGE} style={styles.cardImage} resizeMode="cover" />
+        <Image
+          source={booking.spaImage ? { uri: booking.spaImage } : BOOKING_IMAGE}
+          style={styles.cardImage}
+          resizeMode="cover"
+        />
         <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
           <Text style={styles.statusBadgeText}>{statusLabel}</Text>
         </View>
       </View>
 
       <View style={styles.cardContent}>
-        <Text style={styles.spaName}>{spaName}</Text>
+        <Text style={styles.spaName} numberOfLines={2}>
+          {booking.spaName}
+        </Text>
 
         <View style={styles.detailRow}>
           <Text style={styles.detailIcon}>📍</Text>
-          <Text style={styles.detailText}>{location}</Text>
+          <Text style={styles.detailText} numberOfLines={1}>
+            {booking.location || 'Location unavailable'}
+          </Text>
         </View>
-
-        {/* <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>🧖</Text>
-          <Text style={styles.detailText}>{service}</Text>
-        </View> */}
 
         <View style={styles.detailRow}>
           <Text style={styles.detailIcon}>👤</Text>
@@ -147,48 +133,23 @@ const BookingCard: React.FC<BookingCardProps> = ({
         <View style={styles.detailRowDual}>
           <View style={styles.detailRowItem}>
             <Text style={styles.detailIcon}>📅</Text>
-            <Text style={styles.detailText}>{date}</Text>
+            <Text style={styles.detailText}>{booking.date}</Text>
           </View>
           <View style={styles.detailRowItem}>
             <Text style={styles.detailIcon}>⏰</Text>
-            <Text style={styles.detailText}>{time}</Text>
+            <Text style={styles.detailText}>{booking.time}</Text>
           </View>
         </View>
 
         <View style={styles.divider} />
 
-        {isPending && (
-          <View
-            style={{
-              backgroundColor: '#FFF8E7',
-              borderRadius: 10,
-              padding: 10,
-              marginTop: 12,
-            }}>
-            <Text
-              style={{
-                color: '#8A6D3B',
-                fontSize: 13,
-                lineHeight: 20,
-              }}>
-              🎉 We have received your enquiry successfully.
-
-              {'\n\n'}
-
-              Our team will contact you shortly to confirm your preferred date and
-              time.
-            </Text>
-          </View>
-        )}
-
         <View style={styles.bookingIdRow}>
           <View>
             <Text style={styles.bookingIdLabel}>Booking ID</Text>
-            <Text style={styles.bookingIdValue}>{bookingId}</Text>
+            <Text style={styles.bookingIdValue} numberOfLines={1}>
+              {bookingCode || 'Pending'}
+            </Text>
           </View>
-          {/* <Pressable style={styles.bookNowButton} onPress={onPress}>
-            <Text style={styles.bookNowButtonText}>Book Now</Text>
-          </Pressable> */}
         </View>
       </View>
     </View>
@@ -198,139 +159,200 @@ const BookingCard: React.FC<BookingCardProps> = ({
 const AllBookingScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
-  // const [activeTab, setActiveTab] = useState<BookingStatus>('upcoming');
-  const [activeTab, setActiveTab] =
-  useState<BookingStatus>('upcoming');
+  const requestControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+  const [activeTab, setActiveTab] = useState<BookingTab>('upcoming');
+  const [bookings, setBookings] = useState<BackendBookingListItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-const [pendingBookings, setPendingBookings] =
-  useState<PendingEnquiry[]>([]);
+  const loadBookings = useCallback(
+    async (options?: {
+      page?: number;
+      refresh?: boolean;
+      append?: boolean;
+    }) => {
+      const nextPage = options?.page ?? 1;
+      const append = options?.append ?? false;
+      const refresh = options?.refresh ?? false;
+
+      requestControllerRef.current?.abort();
+      const controller = new AbortController();
+      requestControllerRef.current = controller;
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+
+      if (append) {
+        setLoadingMore(true);
+      } else if (refresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      try {
+        const result = await BookingApi.getBookingHistory({
+          status: activeTab,
+          page: nextPage,
+          limit: PAGE_SIZE,
+          signal: controller.signal,
+        });
+
+        if (requestIdRef.current !== requestId) {
+          return;
+        }
+
+        setPage(result.page);
+        setHasMore(result.hasMore);
+        setBookings(current =>
+          append ? [...current, ...result.items] : result.items,
+        );
+      } catch (loadError) {
+        if (controller.signal.aborted || axios.isCancel(loadError)) {
+          return;
+        }
+
+        if (requestIdRef.current === requestId) {
+          setError(getErrorMessage(loadError));
+          if (!append) {
+            setBookings([]);
+            setHasMore(false);
+          }
+        }
+      } finally {
+        if (requestIdRef.current === requestId) {
+          setLoading(false);
+          setRefreshing(false);
+          setLoadingMore(false);
+          requestControllerRef.current = null;
+        }
+      }
+    },
+    [activeTab],
+  );
 
   useFocusEffect(
-  React.useCallback(() => {
-    const loadPendingBookings = async () => {
-      try {
-        const enquiries = await getPendingEnquiries();
-        setPendingBookings(enquiries);
-      } catch (e) {
-        console.log(e);
-      }
-    };
+    useCallback(() => {
+      loadBookings();
 
-    loadPendingBookings();
-  }, []),
-);
+      return () => {
+        requestControllerRef.current?.abort();
+      };
+    }, [loadBookings]),
+  );
 
-  const bookings: BookingListItem[] = [
-    {
-      id: '1',
-      spaName: 'Tiamoz Salon & Spa',
-      location: 'Banjara Hills, Hyderabad',
-      // service: 'Body Massage (60 mins)',
-      people: '1 Person',
-      date: '20 July',
-      time: '12:00 PM',
-      bookingId: 'TK989879',
-      status: 'upcoming' as BookingStatus,
-    },
-    {
-      id: '2',
-      spaName: 'Tiamoz Salon & Spa',
-      location: 'Banjara Hills, Hyderabad',
-      // service: 'Body Massage (60 mins)',
-      people: '1 Person',
-      date: '24 July',
-      time: '12:00 PM',
-      bookingId: 'TK987654',
-      status: 'upcoming' as BookingStatus,
-    },
-  ];
+  const handleRefresh = useCallback(() => {
+    loadBookings({ page: 1, refresh: true });
+  }, [loadBookings]);
 
-  const enquiryCards: BookingListItem[] = pendingBookings.map(item => ({
-  id: item.id,
-  spaName: item.spaName,
-  location: item.location,
-  people: item.people || 'Awaiting Confirmation',
-  date: item.date || 'To be scheduled',
-  time: item.time || 'Our team will contact you',
-  bookingId: item.bookingId,
-  status: item.status as BookingStatus,
-  isPending: true,
-  note: item.note,
-  imageSource: item.spaImage ? { uri: item.spaImage } : undefined,
-}));
+  const handleEndReached = useCallback(() => {
+    if (!hasMore || loading || refreshing || loadingMore) {
+      return;
+    }
 
-  // const filteredBookings = bookings.filter((b) => b.status === activeTab);
-  const allUpcoming = [...enquiryCards, ...bookings];
+    loadBookings({ page: page + 1, append: true });
+  }, [hasMore, loadBookings, loading, loadingMore, page, refreshing]);
 
-const filteredBookings: BookingListItem[] =
-  activeTab === 'upcoming'
-    ? allUpcoming
-    : bookings.filter(b => b.status === activeTab);
+  const renderBooking = useCallback(
+    ({ item, index }: { item: BackendBookingListItem; index: number }) => (
+      <BookingCard
+        booking={item}
+        style={[
+          styles.bookingCardItem,
+          isTablet && styles.bookingCardItemTablet,
+          index % 2 === 1 && isTablet && styles.tabletCardRight,
+        ]}
+      />
+    ),
+    [isTablet],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* <View style={styles.header}>
-          <Text style={styles.headerTitle}>All Bookings</Text>
-        </View> */}
-
-        <View style={[styles.tabContainer, isTablet && styles.tabContainerTablet]}>
-          <TabButton
-            label="Upcoming"
-            isActive={activeTab === 'upcoming'}
-            onPress={() => setActiveTab('upcoming')}
+      <FlatList
+        data={bookings}
+        key={isTablet ? 'tablet' : 'phone'}
+        numColumns={isTablet ? 2 : 1}
+        keyExtractor={item => item.id}
+        renderItem={renderBooking}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#FFB02E"
           />
-          <TabButton
-            label="Completed"
-            isActive={activeTab === 'completed'}
-            onPress={() => setActiveTab('completed')}
-            style={styles.tabButtonMiddle}
-          />
-          <TabButton
-            label="Cancelled"
-            isActive={activeTab === 'cancelled'}
-            onPress={() => setActiveTab('cancelled')}
-          />
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {activeTab === 'upcoming' && 'Upcoming Bookings'}
-            {activeTab === 'completed' && 'Completed Bookings'}
-            {activeTab === 'cancelled' && 'Cancelled Bookings'}
-          </Text>
-        </View>
-
-        <View style={[styles.bookingsList, isTablet && styles.bookingsListTablet]}>
-          {filteredBookings.length > 0 ? (
-            filteredBookings.map((booking, index) => (
-              <BookingCard
-                key={booking.id}
-                spaName={booking.spaName}
-                location={booking.location}
-                imageSource={booking.imageSource}
-                isPending={booking.isPending}
-                note={booking.note}
-                people={booking.people}
-                date={booking.date}
-                time={booking.time}
-                bookingId={booking.bookingId}
-                status={booking.status}
-                onPress={() => undefined}
-                style={[
-                  styles.bookingCardItem,
-                  isTablet && styles.bookingCardItemTablet,
-                  index > 0 && isTablet && { marginLeft: 12 },
-                ]}
-              />
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No {activeTab} bookings</Text>
+        }
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.35}
+        ListHeaderComponent={
+          <>
+            <View
+              style={[
+                styles.tabContainer,
+                isTablet && styles.tabContainerTablet,
+              ]}
+            >
+              {TABS.map((tab, index) => (
+                <TabButton
+                  key={tab.status}
+                  label={tab.label}
+                  isActive={activeTab === tab.status}
+                  onPress={() => setActiveTab(tab.status)}
+                  style={index === 1 && styles.tabButtonMiddle}
+                />
+              ))}
             </View>
-          )}
-        </View>
-      </ScrollView>
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {activeTab === 'upcoming' && 'Upcoming Bookings'}
+                {activeTab === 'completed' && 'Completed Bookings'}
+                {activeTab === 'cancelled' && 'Cancelled Bookings'}
+              </Text>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.stateContainer}>
+              <ActivityIndicator color="#FFB02E" />
+              <Text style={styles.stateText}>Loading bookings...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.stateContainer}>
+              <Text style={styles.stateTitle}>Unable to load bookings</Text>
+              <Text style={styles.stateText}>{error}</Text>
+              <Pressable
+                style={styles.retryButton}
+                onPress={() => loadBookings()}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.stateContainer}>
+              <Text style={styles.stateTitle}>No {activeTab} bookings</Text>
+              <Text style={styles.stateText}>
+                Your bookings from Tooka will appear here.
+              </Text>
+            </View>
+          )
+        }
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator color="#FFB02E" />
+            </View>
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 };
@@ -343,17 +365,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingBottom: 120,
-    marginTop: 20,
-  },
-  header: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  headerTitle: {
-    fontFamily: 'Sora-SemiBold',
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1E1E1E',
+    paddingTop: 20,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -403,19 +415,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1E1E1E',
   },
-  bookingsList: {
-    flexDirection: 'column',
-  },
-  bookingsListTablet: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
   bookingCardItem: {
     marginBottom: 20,
   },
   bookingCardItemTablet: {
     width: '48%',
     marginBottom: 20,
+  },
+  tabletCardRight: {
+    marginLeft: 12,
   },
   bookingCard: {
     flexDirection: 'row',
@@ -441,7 +449,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#FFB02E',
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -506,30 +513,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#1E1E1E',
+    maxWidth: 180,
   },
-  bookNowButton: {
-    borderWidth: 1,
-    borderColor: '#D4CFBD',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  stateContainer: {
+    paddingVertical: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookNowButtonText: {
-    color: '#8A8A8A',
-    fontWeight: '700',
-    fontSize: 13,
+  stateTitle: {
+    fontSize: 17,
+    color: '#1E1E1E',
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  emptyState: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyStateText: {
-    fontSize: 16,
+  stateText: {
+    fontSize: 14,
     color: '#8A8A8A',
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 18,
+    backgroundColor: '#FFB02E',
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  footerLoader: {
+    paddingVertical: 20,
   },
 });
 

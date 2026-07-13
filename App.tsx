@@ -8,6 +8,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { LocationProvider } from './src/context/LocationContext';
 import { NearbySpaProvider } from './src/context/NearbySpaContext';
 import { ProfileProvider } from './src/context/ProfileContext';
+import { PaymentProvider } from './src/context/PaymentContext';
 
 function App() {
   return (
@@ -17,7 +18,9 @@ function App() {
           <LocationProvider>
             <ProfileProvider>
               <NearbySpaProvider>
-                <AppNavigator />
+                <PaymentProvider>
+                  <AppNavigator />
+                </PaymentProvider>
               </NearbySpaProvider>
             </ProfileProvider>
           </LocationProvider>

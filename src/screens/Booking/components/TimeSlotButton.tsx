@@ -11,9 +11,14 @@ type Props = {
   onSelectSlot: (id: string) => void;
 };
 
-function TimeSlotButton({ slot, selected, width, onSelectSlot }: Props): React.ReactElement {
+function TimeSlotButton({
+  slot,
+  selected,
+  width,
+  onSelectSlot,
+}: Props): React.ReactElement {
   const scale = useRef(new Animated.Value(1)).current;
-  const disabled = slot.status === 'disabled';
+  const disabled = slot.status !== 'available';
 
   useEffect(() => {
     Animated.spring(scale, {

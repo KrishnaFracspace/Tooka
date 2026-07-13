@@ -8,3 +8,10 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# Cashfree PG SDK models are serialized/deserialized across the native bridge.
+# Keep them intact if release minification is enabled later.
+-keep class com.cashfree.** { *; }
+-keep class com.cashfree.pg.** { *; }
+-keep class cashfree.** { *; }
+-dontwarn com.cashfree.**

@@ -26,6 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hydrate = useCallback(async (): Promise<void> => {
     try {
       const session = await readAuthSession();
+      // console.log('AuthContext hydrate session:', session);
       if (session.token && session.user) {
         setUser(session.user);
         setToken(session.token);
@@ -51,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await AuthApi.login({ phone, otp });
       const { token: serverToken, user: serverUser } = response.data;
+      // console.log("token: ", serverToken);
 
       // Update state
       setToken(serverToken);

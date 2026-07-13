@@ -21,6 +21,15 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - CashfreeAnalyticsSDK (2.3.3):
+    - CFNetworkSDK (= 2.3.3)
+  - CashfreePG (2.4.0):
+    - CashfreePGUISDK (= 2.4.0)
+  - CashfreePGCoreSDK (2.4.0):
+    - CashfreeAnalyticsSDK (= 2.3.3)
+  - CashfreePGUISDK (2.4.0):
+    - CashfreePGCoreSDK (= 2.4.0)
+  - CFNetworkSDK (2.3.3)
   - FBLazyVector (0.86.0)
   - hermes-engine (250829098.0.14):
     - hermes-engine/Pre-built (= 250829098.0.14)
@@ -1448,6 +1457,9 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-cashfree-pg-sdk (2.4.0):
+    - CashfreePG (= 2.4.0)
+    - React-Core
   - react-native-geolocation (3.4.0):
     - hermes-engine
     - RCTRequired
@@ -2467,6 +2479,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - React-mutationobservernativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver`)
+  - react-native-cashfree-pg-sdk (from `../node_modules/react-native-cashfree-pg-sdk`)
   - "react-native-geolocation (from `../node_modules/@react-native-community/geolocation`)"
   - react-native-image-picker (from `../node_modules/react-native-image-picker`)
   - react-native-maps (from `../node_modules/react-native-maps`)
@@ -2516,6 +2529,14 @@ DEPENDENCIES:
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
+
+SPEC REPOS:
+  trunk:
+    - CashfreeAnalyticsSDK
+    - CashfreePG
+    - CashfreePGCoreSDK
+    - CashfreePGUISDK
+    - CFNetworkSDK
 
 EXTERNAL SOURCES:
   AsyncStorage:
@@ -2599,6 +2620,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   React-mutationobservernativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver"
+  react-native-cashfree-pg-sdk:
+    :path: "../node_modules/react-native-cashfree-pg-sdk"
   react-native-geolocation:
     :path: "../node_modules/@react-native-community/geolocation"
   react-native-image-picker:
@@ -2700,6 +2723,11 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   AsyncStorage: 163ab23f6aa37a58b7f2379d0b4ee7ac84d6655c
+  CashfreeAnalyticsSDK: 11f37b2323be07bf07948bd6046b7c19e947ae07
+  CashfreePG: 9dfcc5badd0b815312e79923fca49d7e6cf1d55d
+  CashfreePGCoreSDK: 223fc3591ac75f427dc926b9df6b7c17ffa37c67
+  CashfreePGUISDK: 3cb94a859c1aba120c345fe0940685f2fc4634a7
+  CFNetworkSDK: 6a6261de10185efd4d2957583f0cbad395999cac
   FBLazyVector: b3e7ad108f0d882e30445c5527d774e3fd432f3d
   hermes-engine: 6a8ae9fcdbad9dabcb8056cb557e396cbd0e4588
   RCTDeprecation: 2a74a2c57675e64419bd89078efde81f7c1de90b
@@ -2739,6 +2767,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: ce449ccdf3b80384415b925606be8a4bdcfc65d3
   React-microtasksnativemodule: 2eb3f49d0d8e77b5343455eccd057010b8d38b6b
   React-mutationobservernativemodule: f0a0d5ae9b51caf7becbeabf836d716cfedb6bf2
+  react-native-cashfree-pg-sdk: 97289d587ba56ad5a7db6cc4859496cd49ee9630
   react-native-geolocation: c41d1ad8e832fa800b4e457c721e348bcc5aa147
   react-native-image-picker: 23540feacc79c63c60857f318fdfa8477c26e70a
   react-native-maps: 7e3af023b773d6670e3c07e9c8170af842b243e0

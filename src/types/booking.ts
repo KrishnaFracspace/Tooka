@@ -1,34 +1,54 @@
-export type BookingStatus =
-  | 'pending'
-  | 'upcoming'
-  | 'completed'
-  | 'cancelled';
+export type BookingStatus = 'pending' | 'upcoming' | 'completed' | 'cancelled';
 
-export interface Booking {
+export type BookingSlotStatus = 'available' | 'booked' | 'blocked';
+
+export interface BookingScheduleDate {
   id: string;
+  label: string;
+  date: string;
+}
 
-  spaId: string;
-  spaName: string;
-  spaImage?: string;
-  location: string;
+export interface BookingSlot {
+  slotId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: BookingSlotStatus;
+}
 
-  serviceId?: string;
-  serviceName?: string;
+export interface BookingPricing {
+  total?: number | string | null;
+  amount?: number | string | null;
+  currency?: string | null;
+  [key: string]: unknown;
+}
 
-  customerName: string;
-  customerEmail: string;
-  enquiryMessage: string;
+export interface DirectBookingResponse {
+  id: string;
+  booking_ref?: string | null;
+  pricing?: BookingPricing | null;
+  status?: BookingStatus | string | null;
+  [key: string]: unknown;
+}
 
-  people: string;
-
+export interface BackendBookingListItem {
+  id: string;
   bookingId: string;
-
-  status: BookingStatus;
-
+  bookingReference?: string | null;
+  spaName: string;
+  spaImage?: string | null;
+  location: string;
+  guestCount: number | null;
+  appointmentAt?: string | null;
   date: string;
   time: string;
+  status: BookingStatus;
+  pricing?: BookingPricing | null;
+  raw: Record<string, unknown>;
+}
 
-  note?: string;
-
-  createdAt: string;
+export interface BookingListResult {
+  items: BackendBookingListItem[];
+  page: number;
+  hasMore: boolean;
 }

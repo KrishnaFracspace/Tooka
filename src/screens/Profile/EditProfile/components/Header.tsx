@@ -1,14 +1,36 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
 import { styles } from '../styles';
+import Icon from 'react-native-vector-icons/Ionicons';
+// import type { RootStackParamList } from '../../../navigation/types'; // Update this path
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../../navigation/AppNavigator';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 function Header(): React.ReactElement {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NavigationProp>();
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
+      <View style={{}}/>
+      <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => {navigation.goBack()}}
+          android_ripple={{ color: 'rgba(255,255,255,0.25)', borderless: true }}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.backButtonPressed,
+          ]}
+          hitSlop={10}
+        >
+          <Icon name="chevron-back" size={22} color={'#FFF'} />
+        </Pressable>
       <View style={styles.headerCircleLarge} />
       <View style={styles.headerCircleSoft} />
       <View style={styles.headerDotLeft} />

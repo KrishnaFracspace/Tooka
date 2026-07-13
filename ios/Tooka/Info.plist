@@ -38,6 +38,34 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to show nearby spas.</string>
 
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Tooka needs access to your photo library if you choose to upload photos.</string>
+
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Tooka needs permission to save photos to your photo library.</string>
+
+	<key>NSCameraUsageDescription</key>
+	<string>Tooka needs access to your camera if you choose to take photos.</string>
+
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>amazonpay</string>
+			<string>upi</string>
+			<string>credpay</string>
+			<string>bhim</string>
+			<string>paytmmp</string>
+			<string>phonepe</string>
+			<string>tez</string>
+			<string>navipay</string>
+			<string>mobikwik</string>
+			<string>myairtel</string>
+			<string>popclubapp</string>
+			<string>super</string>
+			<string>kiwi</string>
+		<string>simplypayupi</string>
+		<string>whatsapp</string>
+	</array>
+
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We use your location to show nearby spas.</string>
 	<key>RCTNewArchEnabled</key>

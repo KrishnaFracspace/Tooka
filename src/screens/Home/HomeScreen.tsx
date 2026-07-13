@@ -43,6 +43,7 @@ import StateMessage from '../../components/common/StateMessage';
 
 import type { Spa } from '../../types/spa';
 import { getLocationDisplayParts } from '../../services/locationAddress';
+import { useProfile } from '../../context/ProfileContext';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -117,6 +118,7 @@ const HomeScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const [selectedCategory, setSelectedCategory] = useState<string>('spa');
   const isTablet = width >= 768;
+  const { profile, loading: profileLoading } = useProfile();
 
   const categories = categoriesData as CategoryItem[];
   const { location, loading: locationLoading, refreshLocation } = useLocation();
@@ -137,6 +139,7 @@ const HomeScreen: React.FC = () => {
     retrySearch,
     clearSearch,
   } = useSpaSearch();
+  // console.log("Context spa: ", contextSpas, "Search Results: ", searchResults);
 
   const nearbySpas = useMemo<NearbySpaItem[]>(
     () =>
@@ -217,6 +220,7 @@ const HomeScreen: React.FC = () => {
   const isSearchActive = normalizedQuery.length >= 2;
 
   const mappedSearchResults = useMemo<FeaturedSpaItem[]>(() => {
+    // console.log("Search Results: ", searchResults);
     return searchResults.map((spa) => ({
       id: spa.id,
       name: spa.name ?? 'Untitled Spa',
@@ -355,7 +359,9 @@ const HomeScreen: React.FC = () => {
           }}
         />
 
-        <Text style={styles.greeting}>Good Morning, Ayra</Text>
+        <Text style={styles.greeting}>
+          {profile?.displayName ? `Hello, ${profile?.displayName}` : `Hello User`}
+        </Text>
         <Text style={styles.title}>Ready to relax and recharge?</Text>
 
         <SearchBar
@@ -468,7 +474,7 @@ const HomeScreen: React.FC = () => {
 
             <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>
-                    Explore Nearby
+                    Explore Around you
                 </Text>
 
                 <Pressable
@@ -563,7 +569,7 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Available Right Now</Text>
+          <Text style={styles.sectionTitle}>Nearby Retreats</Text>
           <Pressable onPress={() => {}}>
             {/* <Text style={styles.sectionAction}>See all</Text> */}
           </Pressable>

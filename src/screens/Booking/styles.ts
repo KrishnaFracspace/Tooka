@@ -158,6 +158,44 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stepperButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  stepperButtonDisabled: {
+    backgroundColor: colors.disabled,
+  },
+  guestCountPill: {
+    flex: 1,
+    height: 58,
+    borderRadius: 18,
+    marginHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  guestCountValue: {
+    fontFamily: fonts.heading,
+    fontSize: 22,
+    color: colors.white,
+  },
+  guestCountLabel: {
+    marginTop: 2,
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.white,
+  },
   guestButton: {
     height: 35,
     borderRadius: 28,
@@ -231,6 +269,26 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+  },
+  slotState: {
+    minHeight: 118,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  slotStateTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 15,
+    color: colors.heading,
+    textAlign: 'center',
+  },
+  slotStateText: {
+    marginTop: 8,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.muted,
+    textAlign: 'center',
   },
   slotButton: {
     height: 40,
@@ -382,6 +440,9 @@ export const styles = StyleSheet.create({
     height: 50,
     borderRadius: 16,
     overflow: 'hidden',
+  },
+  proceedButtonDisabled: {
+    opacity: 0.48,
   },
   proceedGradient: {
     flex: 1,

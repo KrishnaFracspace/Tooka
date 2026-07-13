@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useCallback, useMemo, useRef } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,9 +28,9 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BottomNavigation'>;
 
-const APP_VERSION = '0.0.1';
-const SUPPORT_PHONE = 'tel:+911234567890';
-const SUPPORT_EMAIL = 'mailto:support@tooka.in';
+const APP_VERSION = '0.0.2';
+const SUPPORT_PHONE = 'tel:+919247952343';
+const SUPPORT_EMAIL = 'mailto:hello@tooka.app';
 
 function normalizePhone(phoneNumber?: string | null): string {
   const trimmed = phoneNumber?.trim();
@@ -74,8 +74,9 @@ const ProfileScreen: React.FC = () => {
   const openExternalUrl = useCallback(async (url: string, fallbackTitle: string) => {
     try {
       const supported = await Linking.canOpenURL(url);
+      // console.log(`Attempting to open URL: ${url}, supported: ${supported}`);
 
-      if (supported) {
+      if (true) {
         await Linking.openURL(url);
         return;
       }
@@ -181,13 +182,34 @@ const ProfileScreen: React.FC = () => {
         id: 'rate-app',
         title: 'Rate our App',
         iconName: 'star-outline',
-        onPress: () => showUnavailableToast('Rate our App'),
+        // onPress: () => showUnavailableToast('Rate our App'),
+        onPress: () => {
+          if(Platform.OS === 'ios') {
+            openExternalUrl('https://apps.apple.com/in/app/tooka-near-you/id6784173654', 'Rate our App')
+          }else if(Platform.OS === 'android') {
+            openExternalUrl('https://play.google.com/store/apps/details?id=com.fracspace.tooka', 'Rate our App')
+          }else{
+            showUnavailableToast('Rate our App')
+          }
+        },
       },
       {
         id: 'terms',
         title: 'Terms & Conditions',
-        iconName: 'alert-circle-outline',
-        onPress: () => showUnavailableToast('Terms & Conditions'),
+        iconName: 'information-circle-outline',
+        onPress: () => navigation.navigate('TermsAndConditions'),
+      },
+      {
+        id: 'privacy',
+        title: 'Privacy & Policy',
+        iconName: 'shield-checkmark-outline',
+        onPress: () => navigation.navigate('PrivacyPolicy'),
+      },
+      {
+        id: 'refund',
+        title: 'Refund & Cancellation Policy',
+        iconName: 'warning-outline',
+        onPress: () => navigation.navigate('RefundPolicy'),
       },
       {
         id: 'logout',

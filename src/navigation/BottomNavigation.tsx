@@ -37,7 +37,14 @@ import ProfileScreen from '../screens/Profile/ProfileScreen';
 import { useAuth } from '../context/AuthContext';
 import AuthenticationScreen from '../authentication/screens/AuthenticationScreen';
 
-const Tab = createBottomTabNavigator();
+export type BottomTabParamList = {
+  Home: undefined;
+  Explore: undefined;
+  Bookings: undefined;
+  Profile: undefined;
+};
+
+const Tab = createBottomTabNavigator<BottomTabParamList>();
 
 const ICONS: Record<string, string> = {
   Home: 'home-outline',
@@ -78,7 +85,7 @@ function CustomTabBar({
       speed: 18,
       bounciness: 8,
     }).start();
-  }, [state.index, tabWidth, indicatorWidth]);
+  }, [state.index, tabWidth, indicatorWidth, translateX]);
 
   if (hideTabBar) {
     return null;
@@ -170,6 +177,8 @@ function CustomTabBar({
 
 function BookingTabScreen(): React.ReactElement {
   const { isAuthenticated, loading } = useAuth();
+
+  console.log('BookingTabScreen - isAuthenticated:', isAuthenticated, 'loading:', loading);
 
   if (loading) {
     return (
