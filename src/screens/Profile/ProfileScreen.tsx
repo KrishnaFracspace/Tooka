@@ -53,7 +53,7 @@ const ProfileScreen: React.FC = () => {
   const isDeletingAccount = useRef<boolean>(false);
 
   const displayName =
-    profile?.displayName?.trim() ||
+    profile?.fullName?.trim() ||
     profile?.fullName?.trim() ||
     profile?.username?.trim() ||
     user?.userName?.trim() ||

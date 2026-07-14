@@ -17,12 +17,13 @@ const Header = ({
       ? '📍 Detecting location...'
       : location || '📍 Unknown Location';
   const secondaryLabel = isPermissionDenied ? '' : locationSecondary || '';
+  const isTablet = width >= 768;
 
   return (
     <View style={styles.header}>
       <View style={styles.brandColumn}>
-        <Image resizeMode='contain' source={{uri:'https://d2f15ematxpwp4.cloudfront.net/appImages/Tooka_Logo.png'}}
-          style={{width: width*0.3, height:Platform.OS == 'android' ? 60 : 80}}
+        <Image resizeMode='cover' source={{uri:'https://d2f15ematxpwp4.cloudfront.net/appImages/Tooka_Logo.png'}}
+          style={{width: isTablet ? width*0.15 : width*0.3, height: 60}}
         />
       </View>
       <View style={styles.actionRow}>
@@ -64,7 +65,7 @@ const styles = StyleSheet.create({
   actionRow: {
     // flex:1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   locationButton: {
     flexDirection: 'row',
@@ -73,7 +74,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    marginRight: 12,
+    marginRight: -8,
     // shadowColor: '#000',
     // shadowOpacity: 0.05,
     // shadowRadius: 10,
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
   },
   locationTextWrapper: {
     marginLeft: 8,
-    flex: 1,
+    // flex: 1,
   },
   locationPrimaryText: {
     fontSize: 13,
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   chevronIcon: {
-    marginLeft: 6,
+    marginLeft: 10,
   },
   notificationButton: {
     width: 44,

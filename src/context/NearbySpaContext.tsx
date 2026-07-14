@@ -196,7 +196,7 @@ export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
           lat,
           lng,
           targetPage,
-          10, // Page size
+          20, // Page size
           cancelTokenSource.token,
         );
 

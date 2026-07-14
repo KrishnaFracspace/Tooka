@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import {
   FlatList,
@@ -44,6 +44,7 @@ import StateMessage from '../../components/common/StateMessage';
 import type { Spa } from '../../types/spa';
 import { getLocationDisplayParts } from '../../services/locationAddress';
 import { useProfile } from '../../context/ProfileContext';
+import { Analytics, AnalyticsEvents, AnalyticsScreens } from '../../services/firebase/analytics';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -161,6 +162,12 @@ const HomeScreen: React.FC = () => {
 
 // const { spas } = useNearbySpa();
 // const { location } = useLocation();
+
+  useEffect(() => {
+    // Analytics.logScreen(AnalyticsScreens.Home);
+
+    Analytics.logEvent(AnalyticsEvents.HOME_VIEWED);
+  }, []);
 
 
 
@@ -359,10 +366,10 @@ const HomeScreen: React.FC = () => {
           }}
         />
 
-        <Text style={styles.greeting}>
+        {/* <Text style={styles.greeting}>
           {profile?.displayName ? `Hello, ${profile?.displayName}` : `Hello User`}
         </Text>
-        <Text style={styles.title}>Ready to relax and recharge?</Text>
+        <Text style={styles.title}>Ready to relax and recharge?</Text> */}
 
         <SearchBar
           value={searchQuery}
@@ -692,7 +699,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 15,
+    marginTop:-5
   },
   sectionTitle: {
     fontFamily:'Sora-SemiBold',

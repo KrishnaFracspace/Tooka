@@ -53,6 +53,7 @@ import PaymentStatusBadge from './components/PaymentStatusBadge';
 import PaymentSummary from './components/PaymentSummary';
 import RetryPaymentButton from './components/RetryPaymentButton';
 import { buildBookingDateAndTime } from '../../utils/bookingDateTime';
+import { Analytics, AnalyticsEvents, AnalyticsParams } from '../../services/firebase/analytics';
 
 type PaymentScreenRouteProp = RouteProp<RootStackParamList, 'PaymentScreen'>;
 type PaymentScreenNavigationProp = NativeStackNavigationProp<
@@ -285,6 +286,13 @@ function PaymentScreen(): React.ReactElement {
         });
 
         if (response.status === BackendPaymentStatus.Captured) {
+          await Analytics.logEvent(
+            AnalyticsEvents.PAYMENT_SUCCESS,
+            {
+              [AnalyticsParams.BOOKING_ID]: response.booking_id ?? '',
+              [AnalyticsParams.AMOUNT]: Number(response.order_amount ?? 0),
+            },
+          );
           finalizeAndNavigate({
             flowState: PaymentFlowState.Success,
             resultType: 'success',

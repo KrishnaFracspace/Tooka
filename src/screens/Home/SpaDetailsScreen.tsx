@@ -21,6 +21,7 @@ import EnquiryModal from '../../components/EnquiryModal';
 import EnquirySuccessModal from '../../components/EnquirySuccessModal';
 import { useEnquiry } from '../../hooks/useEnquiry';
 import type { EnquiryFormValues } from '../../types/Enquiry';
+import { Analytics, AnalyticsEvents, AnalyticsParams, AnalyticsScreens } from '../../services/firebase/analytics';
 
 type SpaDetailsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -45,6 +46,19 @@ function SpaDetailsScreen(): React.ReactElement {
     id: serviceId,
     name: serviceName,
   });
+
+  useEffect(() => {
+    if (!spa) {
+      return;
+    }
+
+    // Analytics.logScreen(AnalyticsScreens.SpaDetails);
+
+    Analytics.logEvent(AnalyticsEvents.SPA_VIEWED, {
+      [AnalyticsParams.SPA_ID]: spa.id,
+      [AnalyticsParams.SPA_NAME]: spa.name,
+    });
+  }, [spa]);
 
   useEffect(() => {
     setSelectedService({ id: serviceId, name: serviceName });

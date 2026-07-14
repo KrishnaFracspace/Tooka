@@ -32,6 +32,7 @@ import { useProfile } from '../../context/ProfileContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import type { BookingScheduleDate, BookingSlot } from '../../types/booking';
 import type { BookingDate, BookingService, TimeSlot } from './types';
+import { Analytics, AnalyticsEvents, AnalyticsParams, AnalyticsScreens } from '../../services/firebase/analytics';
 
 type BookingScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -246,6 +247,14 @@ function BookingScreen(): React.ReactElement {
     Boolean(guestPhone) &&
     !loadingSlots &&
     !submitting;
+
+  useEffect(() => {
+    Analytics.logScreen(AnalyticsScreens.Booking);
+
+    Analytics.logEvent(AnalyticsEvents.BOOKING_STARTED, {
+      [AnalyticsParams.SPA_ID]: spaId,
+    });
+  }, []);
 
   const loadAvailability = useCallback(
     async (date: string) => {

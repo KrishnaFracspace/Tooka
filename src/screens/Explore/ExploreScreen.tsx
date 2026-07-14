@@ -9,6 +9,7 @@ import React, {
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
   FlatList,
   Image,
   Platform,
@@ -64,19 +65,40 @@ type SpaMarkerProps = {
   onPress: (spa: ExploreSpa) => void;
 };
 
-const SpaMarker = memo<SpaMarkerProps>(({ spa, selected, onPress, }) => {
-  const pressScale = useRef(new Animated.Value(1)).current;
-  const selectedScale = useRef(new Animated.Value(selected ? 1 : 0)).current;
-  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+const SpaMarker = memo<SpaMarkerProps>(
+  ({ spa, selected, onPress }) => {
+    const pressScale = useRef(new Animated.Value(1)).current;
+    const selectedScale = useRef(
+      new Animated.Value(selected ? 1 : 0),
+    ).current;
+
+    const [tracksViewChanges, setTracksViewChanges] = useState(true);
+    const { width} = useWindowDimensions();
+    const isTablet = width >= 768;
+
+    const selectedScaleValue = isTablet
+      ? 0.38
+      : Platform.OS === 'android'
+      ? 0.12
+      : 0.18;
 
   useEffect(() => {
-    Animated.spring(selectedScale, {
-      toValue: selected ? 1 : 0,
-      useNativeDriver: true,
-      speed: 18,
-      bounciness: 8,
-    }).start();
-  }, [selected, selectedScale]);
+  // Allow Android to redraw marker when selected changes
+  setTracksViewChanges(true);
+
+  Animated.spring(selectedScale, {
+    toValue: selected ? 1 : 0,
+    useNativeDriver: true,
+    speed: 18,
+    bounciness: 8,
+  }).start();
+
+  const timer = setTimeout(() => {
+    setTracksViewChanges(false);
+  }, 250);
+
+  return () => clearTimeout(timer);
+}, [selected]);
 
   const handlePress = useCallback(() => {
     Animated.sequence([
@@ -100,7 +122,7 @@ const SpaMarker = memo<SpaMarkerProps>(({ spa, selected, onPress, }) => {
     pressScale,
     selectedScale.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, 0.14],
+      outputRange: [0, selectedScaleValue],
     }),
   );
 
@@ -109,6 +131,7 @@ const SpaMarker = memo<SpaMarkerProps>(({ spa, selected, onPress, }) => {
       coordinate={{ latitude: spa.latitude, longitude: spa.longitude }}
       onPress={handlePress}
       tracksViewChanges={tracksViewChanges}
+      zIndex={selected ? 999 : 1}
       anchor={{ x: 0.5, y: 0.9 }}>
       <Animated.View
         style={[
@@ -120,19 +143,25 @@ const SpaMarker = memo<SpaMarkerProps>(({ spa, selected, onPress, }) => {
           <Ionicons name="star" size={10} color="#D28A00" />
           <Text style={styles.markerRatingText}>{spa.rating.toFixed(1)}</Text>
         </View>
-        <View style={styles.markerImageRing}>
+        <View style={[styles.markerImageRing, selected && styles.markedSelected]}>
           {/* <Image source={{ uri: spa.image }} style={styles.markerImage} /> */}
           <Image
-            source={{ uri: spa.image }}
-            style={styles.markerImage}
-            onLoadEnd={() => {
-              setTimeout(() => {
-                  setTracksViewChanges(false);
-              }, 300);
-          }}
-          />
+  source={{ uri: spa.image }}
+  style={styles.markerImage}
+  resizeMode="cover"
+  onLoadStart={() => {
+    setTracksViewChanges(true);
+  }}
+  onLoadEnd={() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        setTracksViewChanges(false);
+      }, 200);
+    });
+  }}
+/>
         </View>
-        <View style={styles.markerPointer} />
+        <View style={[styles.markerPointer, selected && styles.markedSelected]} />
       </Animated.View>
     </Marker>
   );
@@ -678,10 +707,11 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 3,
-    borderColor: '#FFB02E',
+    borderColor: '#423d369e',
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
   },
+  
   markerImage: {
     width: '100%',
     height: '100%',
@@ -694,8 +724,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 13,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: '#FFB02E',
+    borderTopColor: '#423d369e',
     marginTop: -2,
+  },
+  markedSelected: {
+    borderColor: '#FFB02E',
+    borderTopColor:'#FFB02E'
   },
   cardList: {
     position: 'absolute',

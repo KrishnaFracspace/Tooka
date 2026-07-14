@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -20,6 +20,13 @@ import AuthenticationScreen from '../authentication/screens/AuthenticationScreen
 import TermsScreen from '../screens/Legal/TermsScreen';
 import PrivacyPolicyScreen from '../screens/Legal/PrivacyPolicyScreen';
 import RefundPolicyScreen from '../screens/Legal/RefundPolicyScreen';
+
+import {
+  navigationRef,
+  getActiveRouteName,
+} from './NavigationService';
+
+import { Analytics } from '../services/firebase/analytics';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RootStackParamList — single source of navigation type truth.
@@ -125,8 +132,36 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
+  // const routeNameRef = useRef<string>();
+  const routeNameRef = useRef<string>(undefined as never);
   return (
-    <NavigationContainer>
+    // <NavigationContainer>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        const route = navigationRef.getCurrentRoute();
+
+        if (route) {
+          routeNameRef.current = route.name;
+
+          Analytics.logScreen(route.name);
+        }
+      }}
+      onStateChange={() => {
+        const previousRoute = routeNameRef.current;
+
+        const currentRoute = navigationRef.getCurrentRoute()?.name;
+
+        if (
+          currentRoute &&
+          previousRoute !== currentRoute
+        ) {
+          Analytics.logScreen(currentRoute);
+
+          routeNameRef.current = currentRoute;
+        }
+      }}
+    >
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{

@@ -33,12 +33,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical:0,
     // height: 54,
-    marginBottom: 24,
+    marginBottom: 15,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+    marginTop:10
   },
   searchLeft: {
     marginRight: 10,
