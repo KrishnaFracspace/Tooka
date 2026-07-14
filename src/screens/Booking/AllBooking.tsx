@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   StyleProp,
@@ -16,13 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import FullScreenLoader from '../../components/loaders/FullScreenLoader';
 import { useMyBookings } from '../../hooks/useMyBookings';
 import type { BackendBookingListItem, BookingSection } from '../../types/booking';
-import { getBookingSection } from '../../utils/getBookingSection';
-import { getBookingStatusBadgeLabel } from '../../utils/getBookingStatusBadgeLabel';
-import { getPaymentStatusLabel } from '../../utils/getPaymentStatusLabel';
-
-const BOOKING_IMAGE = {
-  uri: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=60',
-};
+import BookingCard from './components/BookingCard';
 
 type BookingTab = BookingSection;
 
@@ -30,11 +23,6 @@ type TabButtonProps = {
   label: string;
   isActive: boolean;
   onPress: () => void;
-  style?: StyleProp<ViewStyle>;
-};
-
-type BookingCardProps = {
-  booking: BackendBookingListItem;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -66,80 +54,6 @@ const TabButton = React.memo<TabButtonProps>(function TabButton({
         {label}
       </Text>
     </Pressable>
-  );
-});
-
-const BookingCard = React.memo<BookingCardProps>(function BookingCard({
-  booking,
-  style,
-}) {
-  const statusLabel = getBookingStatusBadgeLabel(booking.status);
-  const statusColor =
-    getBookingSection(booking.status) === 'cancelled' ? '#C85A54' : '#2E8B57';
-  const people = booking.guestCount
-    ? `${booking.guestCount} ${booking.guestCount === 1 ? 'Person' : 'People'}`
-    : 'Guest details pending';
-  const bookingCode = booking.bookingReference ?? booking.bookingId;
-  const paymentStatusLabel = getPaymentStatusLabel(booking.paymentStatus);
-
-  return (
-    <View style={[styles.bookingCard, style]}>
-      <View style={styles.cardImageContainer}>
-        <Image
-          source={booking.spaImage ? { uri: booking.spaImage } : BOOKING_IMAGE}
-          style={styles.cardImage}
-          resizeMode="cover"
-        />
-        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-          <Text style={styles.statusBadgeText}>{statusLabel}</Text>
-        </View>
-      </View>
-
-      <View style={styles.cardContent}>
-        <Text style={styles.spaName} numberOfLines={2}>
-          {booking.spaName}
-        </Text>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>📍</Text>
-          <Text style={styles.detailText} numberOfLines={1}>
-            {booking.location || 'Location unavailable'}
-          </Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>👤</Text>
-          <Text style={styles.detailText}>{people}</Text>
-        </View>
-
-        <View style={styles.detailRowDual}>
-          <View style={styles.detailRowItem}>
-            <Text style={styles.detailIcon}>📅</Text>
-            <Text style={styles.detailText}>{booking.date}</Text>
-          </View>
-          <View style={styles.detailRowItem}>
-            <Text style={styles.detailIcon}>⏰</Text>
-            <Text style={styles.detailText}>{booking.time}</Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.bookingIdRow}>
-          <View>
-            <Text style={styles.bookingIdLabel}>Booking ID</Text>
-            <Text style={styles.bookingIdValue} numberOfLines={1}>
-              {bookingCode || 'Pending'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.detailIcon}>💳</Text>
-          <Text style={styles.detailText}>{paymentStatusLabel}</Text>
-        </View>
-      </View>
-    </View>
   );
 });
 
@@ -280,7 +194,7 @@ const AllBookingScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F6F1E8',
+    backgroundColor: '#FFF7EE',
   },
   container: {
     paddingHorizontal: 16,
@@ -337,7 +251,7 @@ const styles = StyleSheet.create({
     color: '#1E1E1E',
   },
   bookingCardItem: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   bookingCardItemTablet: {
     width: '48%',
@@ -345,96 +259,6 @@ const styles = StyleSheet.create({
   },
   tabletCardRight: {
     marginLeft: 12,
-  },
-  bookingCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
-  },
-  cardImageContainer: {
-    position: 'relative',
-    width: 120,
-    height: 160,
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  statusBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  statusBadgeText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  cardContent: {
-    flex: 1,
-    padding: 18,
-    justifyContent: 'space-between',
-  },
-  spaName: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1E1E1E',
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  detailRowDual: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  detailRowItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  detailIcon: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  detailText: {
-    fontSize: 13,
-    color: '#6D6D6D',
-    fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E8E3D8',
-    marginVertical: 12,
-  },
-  bookingIdRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  bookingIdLabel: {
-    fontSize: 12,
-    color: '#8A8A8A',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  bookingIdValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1E1E1E',
-    maxWidth: 180,
   },
   stateContainer: {
     paddingVertical: 44,

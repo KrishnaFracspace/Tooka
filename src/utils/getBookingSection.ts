@@ -2,7 +2,7 @@ import type { BookingSection } from '../types/booking';
 import { BOOKING_STATUS } from '../types/booking';
 
 const UPCOMING_STATUSES = new Set<string>([
-  BOOKING_STATUS.PENDING_PAYMENT,
+  // BOOKING_STATUS.PENDING_PAYMENT,
   BOOKING_STATUS.CONFIRMED,
   BOOKING_STATUS.CHECKED_IN,
 ]);

@@ -48,6 +48,30 @@ export interface DirectBookingResponse {
   [key: string]: unknown;
 }
 
+export interface BackendBookingRaw {
+  amount_paid?: string | number | null;
+  amount_total?: string | number | null;
+  currency?: string;
+  spa_snapshot?: {
+    name: string;
+    address: string;
+  }
+  payment?: {
+    payment_amount?: number;
+    payment_currency?: string;
+    cf_payment_id?: string;
+    payment_method?: {
+      upi?: {
+        upi_id?: string;
+      }
+    }
+  };
+  
+
+  // keep the rest flexible
+  [key: string]: unknown;
+}
+
 export interface BackendBookingListItem {
   id: string;
   bookingId: string;
@@ -65,7 +89,8 @@ export interface BackendBookingListItem {
   price?: number | string | null;
   currency?: string | null;
   pricing?: BookingPricing | null;
-  raw: Record<string, unknown>;
+  // raw: Record<string, unknown>;
+  raw: BackendBookingRaw;
 }
 
 export interface BookingListResult {

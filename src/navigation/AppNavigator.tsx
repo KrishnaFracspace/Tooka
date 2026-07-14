@@ -14,7 +14,7 @@ import type { BottomTabParamList } from './BottomNavigation';
 import SplashScreen from '../screens/Splash/SplashScreen';
 import OnboardingScreen from '../screens/Onboarding/OnboardingScreen';
 import ExploreScreen from '../screens/Explore/ExploreScreen';
-import NoPaymentHistoryScreen from '../screens/Profile/NoPaymentHis';
+import PaymentHistoryScreen from '../screens/Payment/PaymentHistoryScreen';
 import EditProfileScreen from '../screens/Profile/EditProfile/EditProfileScreen';
 import AuthenticationScreen from '../authentication/screens/AuthenticationScreen';
 import TermsScreen from '../screens/Legal/TermsScreen';
@@ -151,7 +151,7 @@ const AppNavigator = () => {
 
         <Stack.Screen name="BookingScreen" component={BookingScreen} />
 
-        <Stack.Screen name="NoPayment" component={NoPaymentHistoryScreen} />
+        <Stack.Screen name="NoPayment" component={PaymentHistoryScreen} />
 
         <Stack.Screen name="BookingResult" component={BookingResultScreen} />
 

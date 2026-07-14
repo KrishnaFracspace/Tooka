@@ -936,6 +936,7 @@ loadMoreText: {
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
     elevation: 4,
+    marginBottom:60
   },
   insightImage: {
     width: '100%',

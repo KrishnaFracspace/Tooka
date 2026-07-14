@@ -248,7 +248,7 @@ const toBackendBookingListItem = (
   const spa = asRecord(booking.spa) ?? asRecord(booking.spa_details);
   const service =
     asRecord(booking.service) ?? asRecord(booking.service_details);
-  const pricing = asRecord(booking.pricing);
+  const pricing = asRecord(booking.amount_paid);
   const location =
     asString(booking.location) ??
     asString(spa?.location) ??
@@ -268,8 +268,8 @@ const toBackendBookingListItem = (
   const price =
     booking.price ??
     booking.amount ??
-    pricing?.total ??
-    pricing?.amount ??
+    pricing ??
+    // pricing ??
     null;
   const currency =
     asString(booking.currency) ??
