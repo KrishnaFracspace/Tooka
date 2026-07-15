@@ -22,6 +22,7 @@ import EnquirySuccessModal from '../../components/EnquirySuccessModal';
 import { useEnquiry } from '../../hooks/useEnquiry';
 import type { EnquiryFormValues } from '../../types/Enquiry';
 import { Analytics, AnalyticsEvents, AnalyticsParams, AnalyticsScreens } from '../../services/firebase/analytics';
+import { Crashlytics, CrashlyticsKeys } from '../../services/firebase/crashlytics';
 
 type SpaDetailsNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -73,6 +74,18 @@ function SpaDetailsScreen(): React.ReactElement {
   //   useEffect(() => {
   //   console.log('SPA DATA', spa);
   // }, [spa]);
+
+  if (spa) {
+    Crashlytics.setCustomKey(
+      CrashlyticsKeys.SPA_ID,
+      spa.id,
+    );
+
+    Crashlytics.setCustomKey(
+      CrashlyticsKeys.SPA_NAME,
+      spa.name,
+    );
+  }
 
   const enquiryDefaults = useMemo(
     () => ({

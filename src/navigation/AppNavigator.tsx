@@ -27,6 +27,8 @@ import {
 } from './NavigationService';
 
 import { Analytics } from '../services/firebase/analytics';
+import { Crashlytics, CrashlyticsKeys } from '../services/firebase/crashlytics';
+import useNotifications from '../hooks/useNotifications';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RootStackParamList — single source of navigation type truth.
@@ -134,6 +136,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const AppNavigator = () => {
   // const routeNameRef = useRef<string>();
   const routeNameRef = useRef<string>(undefined as never);
+  useNotifications();
+  
   return (
     // <NavigationContainer>
     <NavigationContainer
@@ -145,6 +149,10 @@ const AppNavigator = () => {
           routeNameRef.current = route.name;
 
           Analytics.logScreen(route.name);
+          Crashlytics.setCustomKey(
+            CrashlyticsKeys.SCREEN,
+            route.name,
+          );
         }
       }}
       onStateChange={() => {

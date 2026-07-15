@@ -575,7 +575,7 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
         />
       )}
 
-      <Text style={[styles.sectionTitle, styles.standaloneSectionTitle]}>Exclusive Offers</Text>
+      {/* <Text style={[styles.sectionTitle, styles.standaloneSectionTitle]}>Exclusive Offers</Text>
       <Pressable
         style={styles.offerCard}
         onPress={() => {}}
@@ -597,11 +597,11 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
         <View style={styles.offerButton}>
           <Text style={styles.offerButtonText}>{offer.cta}</Text>
         </View>
-      </Pressable>
+      </Pressable> */}
 
       <Text style={[styles.sectionTitle, styles.standaloneSectionTitle]}>Location</Text>
       <View style={styles.locationCard}>
-        <View style={styles.mapPreview}>
+        {/* <View style={styles.mapPreview}>
           <View style={[styles.mapRoad, styles.mapRoadOne]} />
           <View style={[styles.mapRoad, styles.mapRoadTwo]} />
           <View style={[styles.mapRoad, styles.mapRoadThree]} />
@@ -610,7 +610,7 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
           <View style={styles.mapMarker}>
             <Ionicons name="location-sharp" size={24} color="#FFFFFF" />
           </View>
-        </View>
+        </View> */}
         <View style={styles.locationAddressRow}>
           <Text style={styles.locationAddress} numberOfLines={3}>
             {spaAddress}

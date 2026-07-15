@@ -16,6 +16,8 @@ end
 
 pod 'GoogleUtilities', :modular_headers => true
 pod 'FirebaseCoreInternal', :modular_headers => true
+pod 'GoogleDataTransport', :modular_headers => true
+pod 'nanopb', :modular_headers => true
 
 target 'Tooka' do
   config = use_native_modules!

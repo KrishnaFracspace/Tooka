@@ -20,6 +20,7 @@ export function useSpaDetails(spaId: string) {
 
       try {
         const response = await SpaApi.getSpaDetails(spaId);
+        // console.log("SpaDetails: ", response);
         setSpa(response ?? null);
 
         if (__DEV__) {

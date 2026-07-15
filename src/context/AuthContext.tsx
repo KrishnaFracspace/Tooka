@@ -13,6 +13,7 @@ import {
   clearAuthSession,
 } from '../utils/authStorage';
 import type { AuthUser, AuthContextValue } from '../types/auth';
+import { Crashlytics, CrashlyticsKeys } from '../services/firebase/crashlytics';
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -31,6 +32,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session.user);
         setToken(session.token);
         setIsLoggedIn(true);
+
+        await Crashlytics.setUserId(session.user.id);
+
+        await Crashlytics.setCustomKey(
+          CrashlyticsKeys.USER_ID,
+          session.user.id,
+        );
+
+        await Crashlytics.setCustomKey(
+          CrashlyticsKeys.USER_PHONE,
+          session.user.phoneNumber,
+        );
       }
       console.log('AuthContext hydrated:', session.token);
     } catch (error) {
@@ -58,6 +71,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(serverToken);
       setUser(serverUser);
       setIsLoggedIn(true);
+
+      await Crashlytics.setUserId(serverUser.id);
+
+      await Crashlytics.setCustomKey(
+        CrashlyticsKeys.USER_PHONE,
+        serverUser.phoneNumber,
+      );
 
       // Save to storage
       await writeAuthSession(serverToken, serverUser, true);
@@ -110,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(null);
       setIsLoggedIn(false);
       await clearAuthSession();
+      await Crashlytics.clearUser();
     } catch (error) {
       if (__DEV__) {
         console.warn('[AuthContext] logout error:', error);

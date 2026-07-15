@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Button, Linking, Platform } from 'react-native';
 import {
   FlatList,
   Image,
@@ -45,6 +45,7 @@ import type { Spa } from '../../types/spa';
 import { getLocationDisplayParts } from '../../services/locationAddress';
 import { useProfile } from '../../context/ProfileContext';
 import { Analytics, AnalyticsEvents, AnalyticsScreens } from '../../services/firebase/analytics';
+import { Crashlytics } from '../../services/firebase/crashlytics';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -168,6 +169,9 @@ const HomeScreen: React.FC = () => {
 
     Analytics.logEvent(AnalyticsEvents.HOME_VIEWED);
   }, []);
+  useEffect(() => {
+  Crashlytics.log('Application Started');
+}, []);
 
 
 
@@ -365,6 +369,11 @@ const HomeScreen: React.FC = () => {
             // TODO: Add notification navigation
           }}
         />
+
+        {/* <Button
+          title="Test Crash"
+          onPress={() => Crashlytics.testCrash()}
+        /> */}
 
         {/* <Text style={styles.greeting}>
           {profile?.displayName ? `Hello, ${profile?.displayName}` : `Hello User`}
@@ -635,12 +644,12 @@ const HomeScreen: React.FC = () => {
           </View>
         )}
 
-        <OfferCard
+        {/* <OfferCard
           item={offer}
           onPress={() => {
             // TODO: Add offer action
           }}
-        />
+        /> */}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Your wellness moment</Text>
