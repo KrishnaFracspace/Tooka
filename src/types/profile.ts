@@ -1,5 +1,6 @@
-export type ProfileGender = 'female' | 'male' | 'other' | string;
+import type { ProfileImage } from './profileImage';
 
+export type ProfileGender = 'female' | 'male' | 'other' | string;
 export interface ProfileCurrentLocation {
   latitude: number;
   longitude: number;
@@ -56,7 +57,7 @@ export interface UpdateProfilePayload {
   phone?: string;
   gender?: string;
   dateOfBirth?: string;
-  avatarUrl?: string;
+  avatar?: ProfileImage;
   lat?: number;
   lng?: number;
   lati?: number;

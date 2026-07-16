@@ -29,6 +29,7 @@ import {
 import { Analytics } from '../services/firebase/analytics';
 import { Crashlytics, CrashlyticsKeys } from '../services/firebase/crashlytics';
 import useNotifications from '../hooks/useNotifications';
+import { WellnessArticleScreen } from '../screens/Wellness';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RootStackParamList — single source of navigation type truth.
@@ -111,6 +112,7 @@ export type RootStackParamList = {
   TermsAndConditions: undefined;
   PrivacyPolicy: undefined;
   RefundPolicy: undefined;
+  wellnessArticle?: undefined;
   Login:
     | { spaId?: string; serviceId?: string; serviceName?: string }
     | undefined;
@@ -207,6 +209,8 @@ const AppNavigator = () => {
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
 
         <Stack.Screen name="RefundPolicy" component={RefundPolicyScreen} />
+
+        <Stack.Screen name="wellnessArticle" component={WellnessArticleScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

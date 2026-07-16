@@ -56,6 +56,14 @@ const imagePickerOptions: ImageLibraryOptions = {
 };
 
 function EditProfileScreen(): React.ReactElement {
+  const isMounted = React.useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const navigation = useNavigation<EditProfileNavigationProp>();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
@@ -147,7 +155,7 @@ function EditProfileScreen(): React.ReactElement {
         return;
       }
 
-      updateField('profilePhotoUri', prepared.uri);
+      updateField('profilePhotoUri', prepared);
     });
   }, [imagePicking, updateField]);
 
@@ -268,7 +276,9 @@ function EditProfileScreen(): React.ReactElement {
         text2: getProfileErrorMessage(error),
       });
     } finally {
-      setSubmitted(false);
+      if (isMounted.current) {
+        setSubmitted(false);
+      }
     }
   }, [
     currentLocation,

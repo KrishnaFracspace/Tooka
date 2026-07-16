@@ -19,6 +19,7 @@ import type {
 } from '../types/profile';
 import { getProfileErrorMessage } from '../utils/profileValidation';
 import { mergeProfile } from '../utils/profileMappers';
+import { resolveImageUri } from '../types/profileImage';
 
 const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
 
@@ -182,15 +183,18 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           phone: payload.phone ?? profile?.phone ?? null,
           gender: payload.gender ?? profile?.gender ?? null,
           dateOfBirth: payload.dateOfBirth ?? profile?.dateOfBirth ?? null,
-          avatarUrl: payload.avatarUrl ?? profile?.avatarUrl ?? null,
+          avatarUrl: resolveImageUri(payload.avatar ?? null) ?? profile?.avatarUrl ?? null,
           currentLocation: currentLocationRef.current,
         };
 
         const merged = mergeProfile(profile, responseProfile ?? optimisticPatch);
+        // console.log("Update profile payload: ", payload);
+        // console.log("Update profile merged: ", merged);
         setProfile(merged);
         return merged;
       } catch (updateError) {
         const message = getProfileErrorMessage(updateError);
+        console.log("Error in update profile", updateError);
         setError(message);
         throw updateError;
       } finally {
@@ -204,7 +208,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 
   const setResidentialLocation = useCallback((residentialLocation: ResidentialLocation | null) => {
-    setProfile((prev) => (prev ? mergeProfile(prev, { residentialLocation }) : prev));
+    setProfile((prev) => {
+      if (!prev) return prev;
+      if (prev.residentialLocation?.formattedAddress === residentialLocation?.formattedAddress) {
+        return prev;
+      }
+      return mergeProfile(prev, { residentialLocation });
+    });
   }, []);
 
   const setLocalProfile = useCallback((nextProfile: UserProfile | null) => {

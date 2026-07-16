@@ -98,7 +98,7 @@ export const normalizeProfileResponse = (response: ProfileApiResponse): UserProf
     username: pickString(raw, ['username', 'userName']),
     fullName: pickString(raw, ['fullName', 'name']),
     displayName: pickString(raw, ['displayName']),
-    avatarUrl: pickString(raw, ['avatarUrl', 'avatar', 'profilePhoto']),
+    avatarUrl: pickString(raw, ['avatarUrl', 'avatarUrl', 'profilePhoto']),
     gender: pickString(raw, ['gender']),
     dateOfBirth: pickString(raw, ['dateOfBirth', 'dob']),
     preferredLanguage: pickString(raw, ['preferredLanguage']),
@@ -149,11 +149,7 @@ export const removeEmptyProfilePayloadValues = (
   payload: UpdateProfilePayload,
 ): UpdateProfilePayload => {
   const entries = Object.entries(payload).filter(([, value]) => {
-    if (value === undefined || value === null) {
-      return false;
-    }
-
-    return typeof value !== 'string' || value.trim().length > 0;
+    return value !== undefined && value !== null;
   });
 
   return Object.fromEntries(entries) as UpdateProfilePayload;

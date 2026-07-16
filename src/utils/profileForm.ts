@@ -64,7 +64,7 @@ export const buildUpdateProfilePayload = (
     phone: form.phoneNumber.replace(/\D/g, ''),
     gender: form.gender.toLowerCase(),
     dateOfBirth: formatDateForApi(form.dateOfBirth),
-    avatarUrl: form.profilePhotoUri?.trim(),
+    avatar: typeof form.profilePhotoUri === 'string' ? form.profilePhotoUri.trim() : form.profilePhotoUri,
     lat: form.residentialLocation?.latitude,
     lng: form.residentialLocation?.longitude,
     lati: currentLocation?.latitude,

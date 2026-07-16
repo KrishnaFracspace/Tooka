@@ -1,6 +1,7 @@
 import authAxiosClient from './authAxiosClient';
 import type { ProfileApiResponse, UpdateProfilePayload, UserProfile } from '../types/profile';
 import { normalizeProfileResponse } from '../utils/profileMappers';
+import { objectToFormData } from './multiForm';
 
 const ProfileApi = {
   getProfile: async (signal?: AbortSignal): Promise<UserProfile> => {
@@ -8,12 +9,35 @@ const ProfileApi = {
     return normalizeProfileResponse(response.data);
   },
 
+  // updateProfile: async (
+  //   payload: UpdateProfilePayload,
+  //   signal?: AbortSignal,
+  // ): Promise<UserProfile | null> => {
+  //   const response = await authAxiosClient.put<ProfileApiResponse>('/users/profile', payload, { signal });
+  //   const raw = response.data?.data ?? response.data?.profile ?? response.data?.user ?? null;
+  //   return raw ? normalizeProfileResponse(response.data) : null;
+  // },
   updateProfile: async (
     payload: UpdateProfilePayload,
     signal?: AbortSignal,
   ): Promise<UserProfile | null> => {
-    const response = await authAxiosClient.put<ProfileApiResponse>('/users/profile', payload, { signal });
-    const raw = response.data?.data ?? response.data?.profile ?? response.data?.user ?? null;
+    const formData = objectToFormData(payload);
+
+    console.log('FORM DATA PARTS');
+    console.log((formData as any)._parts);
+    const response = await authAxiosClient.put<ProfileApiResponse>(
+      '/users/profile',
+      objectToFormData(payload),
+      { signal },
+    );
+    console.log("Response:", response.data);
+
+    const raw =
+      response.data?.data ??
+      response.data?.profile ??
+      response.data?.user ??
+      null;
+
     return raw ? normalizeProfileResponse(response.data) : null;
   },
 };

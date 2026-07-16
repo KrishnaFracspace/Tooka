@@ -4,14 +4,20 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import { COLORS } from '../constants';
 import { styles } from '../styles';
+import type { ProfileImage } from '../../../../types/profileImage';
+import { resolveImageUri } from '../../../../types/profileImage';
 
 type Props = {
-  photoUri: string | null;
+  photoUri: ProfileImage;
   onChoosePhoto: () => void;
 };
 
 function ProfilePhotoCard({ photoUri, onChoosePhoto }: Props): React.ReactElement {
   const opacity = useRef(new Animated.Value(0)).current;
+
+  // Safely compute a plain string URI — never pass an object to <Image source>.
+  // resolveImageUri handles: null → null, string → string, object → object.uri
+  const resolvedUri = resolveImageUri(photoUri);
 
   useEffect(() => {
     Animated.timing(opacity, {
@@ -19,14 +25,13 @@ function ProfilePhotoCard({ photoUri, onChoosePhoto }: Props): React.ReactElemen
       duration: 220,
       useNativeDriver: true,
     }).start();
-  }, [opacity, photoUri]);
-  // console.log('ProfilePhotoCard Render. photoUri:', photoUri);
+  }, [opacity, resolvedUri]);
 
   return (
     <View style={styles.photoCard}>
       <Animated.View style={[styles.uploadCircle, { opacity }]}>
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.selectedPhoto} resizeMode="cover" />
+        {resolvedUri ? (
+          <Image source={{ uri: resolvedUri }} style={styles.selectedPhoto} resizeMode="cover" />
         ) : (
           <Ionicons name="cloud-upload-outline" size={25} color={COLORS.primary} />
         )}

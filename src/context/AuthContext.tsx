@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import AuthApi from '../api/AuthApi';
 import {
   readAuthSession,
@@ -137,6 +138,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   }, []);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('UNAUTHORIZED', () => {
+      void logout();
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [logout]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

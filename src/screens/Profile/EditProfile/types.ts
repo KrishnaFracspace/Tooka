@@ -1,5 +1,6 @@
 import type { KeyboardTypeOptions } from 'react-native';
 import type { ResidentialLocation } from '../../../types/profile';
+import type { ProfileImage } from '../../../types/profileImage';
 
 export type Gender = 'female' | 'male' | 'other';
 
@@ -14,7 +15,7 @@ export interface EditProfileForm {
   dateOfBirth: Date;
   addressLine1: string;
   addressLine2: string;
-  profilePhotoUri: string | null;
+  profilePhotoUri: ProfileImage;
   residentialLocation: ResidentialLocation | null;
 }
 

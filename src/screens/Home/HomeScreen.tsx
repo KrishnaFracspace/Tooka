@@ -666,7 +666,7 @@ const HomeScreen: React.FC = () => {
           </ScrollView>
         </View>
 
-        <Pressable style={styles.insightCard} onPress={() => {}}>
+        <Pressable style={styles.insightCard} onPress={() => {navigation.navigate('wellnessArticle')}}>
           <Image source={{ uri: wellnessInsight.image }} style={styles.insightImage} />
           <View style={styles.insightContent}>
             <Text style={styles.insightLabel}>WELLNESS INSIGHT</Text>

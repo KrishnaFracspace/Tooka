@@ -3,7 +3,7 @@ import { Pressable, View, Text, StyleSheet, Image } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const NearbySpaCard = ({ item, onPress }) => {
-  console.log("Nearby retreats : ", item);
+  // console.log("Nearby retreats : ", item);
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <Image source={{ uri: item.image }} style={styles.image} />
