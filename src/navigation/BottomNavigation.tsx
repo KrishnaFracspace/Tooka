@@ -53,6 +53,88 @@ const ICONS: Record<string, string> = {
   Profile: 'person-outline',
 };
 
+const AnimatedIcon = Animated.createAnimatedComponent(Ionicons);
+
+function TabItem({ isFocused, label, iconName, onPress }: { isFocused: boolean; label: string; iconName: string; onPress: () => void }) {
+  const focusAnim = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(focusAnim, {
+      toValue: isFocused ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [isFocused, focusAnim]);
+
+  const bgColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 176, 46, 0)', '#FFB02E'],
+  });
+
+  const iconColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#FFB02E', '#FFFFFF'],
+  });
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={isFocused ? { selected: true } : {}}
+      accessibilityLabel={label}
+      style={[
+        styles.tabButton,
+        { flex: 1 },
+      ]}>
+      <Animated.View
+        style={[
+          styles.pill,
+          {
+            backgroundColor: bgColor,
+            maxWidth: '100%',
+            paddingHorizontal: focusAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [8, 8],
+            }),
+            transform: [
+              {
+                scale: focusAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.95, 1],
+                }),
+              },
+            ],
+          },
+        ]}>
+        <AnimatedIcon name={iconName} size={16} color={iconColor} />
+        
+        <Animated.View
+          style={{
+            flexShrink: 1,
+            maxWidth: focusAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 120],
+            }),
+            opacity: focusAnim,
+            overflow: 'hidden',
+            marginLeft: focusAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 3],
+            }),
+          }}>
+          <Text
+            style={styles.activeLabel}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            adjustsFontSizeToFit={false}>
+            {label}
+          </Text>
+        </Animated.View>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 // ─── Custom Tab Bar ───────────────────────────────────────────────────────────
 
 function CustomTabBar({
@@ -60,32 +142,9 @@ function CustomTabBar({
   descriptors,
   navigation,
 }: BottomTabBarProps) {
-  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const currentRoute = state.routes[state.index].name;
   const hideTabBar = currentRoute === 'Explore';
-
-  const containerWidth = width * 0.92;
-  const tabCount = state.routes.length;
-  const tabWidth = containerWidth / tabCount;
-  const indicatorWidth = Math.max(80, tabWidth * 0.9);
-
-  const translateX = useRef(
-    new Animated.Value(
-      state.index * tabWidth + (tabWidth - indicatorWidth) / 2,
-    ),
-  ).current;
-
-  useEffect(() => {
-    Animated.spring(translateX, {
-      toValue:
-        state.index * tabWidth +
-        (tabWidth - indicatorWidth) / 2,
-      useNativeDriver: true,
-      speed: 18,
-      bounciness: 8,
-    }).start();
-  }, [state.index, tabWidth, indicatorWidth, translateX]);
 
   if (hideTabBar) {
     return null;
@@ -97,29 +156,10 @@ function CustomTabBar({
       style={[
         styles.container,
         {
-          bottom:
-            Platform.OS === 'android'
-              ? insets.bottom + 10
-              : 20,
+          bottom: insets.bottom > 0 ? insets.bottom + 5 : 16,
         },
       ]}>
-      <View
-        style={[
-          styles.tabBackground,
-          {
-            width: containerWidth,
-          },
-        ]}>
-        <Animated.View
-          style={[
-            styles.activeIndicator,
-            {
-              width: indicatorWidth,
-              transform: [{ translateX }],
-            },
-          ]}
-        />
-
+      <View style={styles.tabBackground}>
         {state.routes.map((route, index) => {
           const isFocused = state.index === index;
 
@@ -146,28 +186,13 @@ function CustomTabBar({
           };
 
           return (
-            <Pressable
+            <TabItem
               key={route.key}
+              isFocused={isFocused}
+              label={label}
+              iconName={ICONS[label] || 'ellipse-outline'}
               onPress={onPress}
-              style={[
-                styles.tabButton,
-                {
-                  width: tabWidth,
-                },
-              ]}>
-              <View style={styles.tabInner}>
-                <Ionicons
-                  name={ICONS[label] || 'ellipse-outline'}
-                  size={22}
-                  color={isFocused ? '#FFF' : '#FFB02E'}
-                />
-                {isFocused && (
-                  <Text style={styles.activeLabel}>
-                    {label}
-                  </Text>
-                )}
-              </View>
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -230,86 +255,45 @@ function ProfileTabScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    left: 16,
+    right: 16,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
 
   tabBackground: {
-    height: 64,
-    borderRadius: 40,
+    width: '100%',
+    borderRadius: 999,
     backgroundColor: '#FFF',
-
     flexDirection: 'row',
     alignItems: 'center',
-
-    paddingHorizontal: 8,
-
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-
-    elevation: 10,
-  },
-
-  activeIndicator: {
-    position: 'absolute',
-    left: 0,
-    top: 6,
-
-    height: 52,
-    borderRadius: 30,
-
-    backgroundColor: '#FFB02E',
+    justifyContent: 'space-between',
+    padding: 5,
 
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    elevation: 5,
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
   },
 
   tabButton: {
-    height: '100%',
-    justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-  },
-
-  tabInner: {
     justifyContent: 'center',
+  },
+
+  pill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'center',
-  },
-
-  icon: {
-    fontSize: 18,
-  },
-
-  activeIcon: {
-    color: '#FFF',
-    fontWeight: '700',
-  },
-
-  inactiveIcon: {
-    color: '#FFFFFF',
+    justifyContent: 'center',
+    borderRadius: 999,
+    paddingVertical: 5,
+    minHeight: 44,
   },
 
   activeLabel: {
-    marginTop: 2,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
     color: '#FFF',
   },
 
