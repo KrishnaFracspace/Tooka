@@ -322,6 +322,7 @@ const styles = StyleSheet.create({
 });
 
 export default function BottomNavigation() {
+  const { isAuthenticated, loading } = useAuth();
   return (
     <Tab.Navigator
       initialRouteName="Home"
@@ -330,7 +331,9 @@ export default function BottomNavigation() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
-      <Tab.Screen name="Bookings" component={BookingTabScreen} />
+      {isAuthenticated &&
+        <Tab.Screen name="Bookings" component={BookingTabScreen} />
+      }
       <Tab.Screen name="Profile" component={ProfileTabScreen} />
     </Tab.Navigator>
   );

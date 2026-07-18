@@ -180,6 +180,8 @@ function BookingScreen(): React.ReactElement {
   const tokenPrice = parsePrice(bookingOption.price);
   const footerPrice = tokenPrice || servicePrice;
 
+  // console.log("Bookinf data: ",bookingOption);
+
   const service = useMemo<BookingService>(
     () => ({
       name: route.params.serviceName ?? route.params.spaName ?? 'Spa booking',

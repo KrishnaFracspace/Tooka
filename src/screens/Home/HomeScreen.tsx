@@ -46,6 +46,7 @@ import { getLocationDisplayParts } from '../../services/locationAddress';
 import { useProfile } from '../../context/ProfileContext';
 import { Analytics, AnalyticsEvents, AnalyticsScreens } from '../../services/firebase/analytics';
 import { Crashlytics } from '../../services/firebase/crashlytics';
+import { useAuth } from '../../context/AuthContext';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -124,6 +125,7 @@ const HomeScreen: React.FC = () => {
 
   const categories = categoriesData as CategoryItem[];
   const { location, loading: locationLoading, refreshLocation } = useLocation();
+  // console.log("User locartionL ", location);
   const {
     spas: contextSpas,
     loading: contextLoading,
@@ -179,7 +181,15 @@ const HomeScreen: React.FC = () => {
   const offer = offerData as OfferItem;
   const wellnessInsight = wellnessInsightData as WellnessInsightItem;
 
-  const { spas, loading, error, refreshing, refetch, onRefresh } = useSpaDiscovery('Hyderabad');
+  const { isAuthenticated } = useAuth();
+
+  const resolvedCity = useMemo(() => {
+    const pCity = profile?.city?.trim();
+    const lCity = location?.city?.trim();
+    return pCity || lCity || 'Hyderabad';
+  }, [profile?.city, location?.city]);
+
+  const { spas, loading, error, refreshing, refetch, onRefresh } = useSpaDiscovery(resolvedCity, isAuthenticated);
 
   const locationDisplay = useMemo(() => {
     const address = location ? {
@@ -206,13 +216,53 @@ const HomeScreen: React.FC = () => {
     refreshLocation(false).catch(() => undefined);
   }, [location?.permission, refreshLocation]);
 
+  // console.log("Curated spas: ", spas);
+
+  function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): string {
+  const R = 6371e3; // meters
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) *
+      Math.cos(phi2) *
+      Math.sin(deltaLambda / 2) *
+      Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  const d = R * c;
+  if (d < 1000) {
+    return `${Math.round(d)} m`;
+  }
+  return `${(d / 1000).toFixed(1)} km`;
+}
+
   const featuredSpas = useMemo<FeaturedSpaItem[]>(
     () =>
       spas.map((spa) => ({
         id: spa.id,
         name: spa.name ?? 'Untitled Spa',
         location: spa.city_name ?? DEFAULT_LOCATION,
-        distance: DEFAULT_DISTANCE,
+        // distance: calculateDistance(location?.latitude, location?.longitude, spa.lat, spa.lng),
+        distance:
+        location?.latitude != null &&
+        location?.longitude != null
+          ? calculateDistance(
+              location.latitude,
+              location.longitude,
+              Number(spa.lat),
+              Number(spa.lng),
+            )
+          : '--',
+        // distance: DEFAULT_DISTANCE,
         rating: String(spa.rating_google ?? DEFAULT_RATING),
         reviews: `${spa.review_count_google ?? 0} reviews`,
         price: DEFAULT_PRICE,
@@ -236,7 +286,15 @@ const HomeScreen: React.FC = () => {
       id: spa.id,
       name: spa.name ?? 'Untitled Spa',
       location: spa.subtitle ?? DEFAULT_LOCATION,
-      distance: DEFAULT_DISTANCE,
+      distance: location?.latitude != null &&
+        location?.longitude != null
+          ? calculateDistance(
+              location.latitude,
+              location.longitude,
+              Number(spa.latitude),
+              Number(spa.longitude),
+            )
+          : '--',
       rating: spa.rating ?? String(DEFAULT_RATING),
       reviews: '0 reviews',
       price: DEFAULT_PRICE,
@@ -391,7 +449,7 @@ const HomeScreen: React.FC = () => {
           }}
         />
 
-        <FlatList<CategoryItem>
+        {/* <FlatList<CategoryItem>
           data={categories}
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -402,7 +460,7 @@ const HomeScreen: React.FC = () => {
           windowSize={3}
           removeClippedSubviews
           renderItem={renderCategoryItem}
-        />
+        /> */}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Curated for you</Text>
@@ -672,6 +730,7 @@ const HomeScreen: React.FC = () => {
             <Text style={styles.insightLabel}>WELLNESS INSIGHT</Text>
             <Text style={styles.insightTitle}>{wellnessInsight.title}</Text>
             <Text style={styles.insightDescription}>{wellnessInsight.description}</Text>
+            <Text style={{fontFamily:'Sora-SemiBold',fontSize:12,color:'#ffb02e',textDecorationLine:'underline',marginTop:10}}>Read</Text>
           </View>
         </Pressable>
       </ScrollView>
@@ -961,7 +1020,7 @@ loadMoreText: {
     borderRadius:10
   },
   insightContent: {
-    paddingHorizontal: 30,
+    paddingHorizontal: 20,
     paddingVertical:10,
     alignItems:'center'
   },

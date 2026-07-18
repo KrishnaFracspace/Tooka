@@ -52,7 +52,7 @@ function ProfileHeader({ onNotificationPress }: Props): React.ReactElement {
           <View style={styles.headerCircleLarge} pointerEvents="none" />
           <View style={styles.headerCircleSoft} pointerEvents="none" />
           <View style={styles.headerDotOne} pointerEvents="none" />
-          <View style={styles.headerDotTwo} pointerEvents="none" />
+          {/* <View style={styles.headerDotTwo} pointerEvents="none" /> */}
 
 
       <View style={styles.headerTopRow}>

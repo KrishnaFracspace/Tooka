@@ -8,6 +8,7 @@ import React, {
 import {
   FlatList,
   Image,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -137,9 +138,11 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       </Text>
       <Text style={styles.servicePrice}>{price}</Text>
     </View>
+    {subtitle != "" &&
     <Text style={styles.serviceSubtitle} numberOfLines={3}>
       {subtitle}
     </Text>
+    }
     <View style={styles.serviceMetaRow}>
       <View style={styles.metaPill}>
         <Ionicons name="time-outline" size={14} color="#9A9A9A" />
@@ -299,6 +302,7 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
     id: serviceId,
     name: serviceName,
   });
+  // console.log("Spa details: ", spa?.is_bookable);
 
   useEffect(() => {
     setSelectedService({ id: serviceId, name: serviceName });
@@ -359,11 +363,33 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
     [isAuthenticated, navigation, onBookSpa, spaId],
   );
 
-  const handleGetDirections = useCallback(() => {
-    if (__DEV__) {
-      console.log('Get directions for', spa?.lat, spa?.lng);
+  // const handleGetDirections = useCallback(() => {
+  //   Linking.openURL(spa.google_maps_url)
+  //   if (__DEV__) {
+  //     console.log('Get directions for', spa?.lat, spa?.lng);
+  //   }
+  // }, [spa?.lat, spa?.lng]);
+
+  const handleGetDirections = useCallback(async () => {
+    const url = spa?.google_maps_url;
+
+    if (!url) {
+      console.warn('Google Maps URL is missing');
+      return;
     }
-  }, [spa?.lat, spa?.lng]);
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.warn('Cannot open URL:', url);
+      }
+    } catch (error) {
+      console.error('Failed to open Google Maps URL', error);
+    }
+  }, [spa?.google_maps_url]);
 
   const handleHeroScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -381,9 +407,10 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
 
   const renderServiceItem = useCallback(
     ({ item, index }: ListRenderItemInfo<SpaServiceItem>) => {
+      console.log("Services: ",item);
       const durationText = item.duration_minutes != null ? `${item.duration_minutes} min` : 'N/A';
       const priceText = formatServicePrice(item.base_price, item.currency);
-      const subtitleText = item.short_description ?? item.description ?? 'No description available';
+      const subtitleText = item.short_description ?? item.description ?? "";
       const categoryText = item.category ?? 'Wellness';
 
       return (
@@ -512,6 +539,10 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
         </View>
       </View>
 
+      <Text style={styles.descriptionText} numberOfLines={3}>
+        {spaDescription}
+      </Text>
+
       <View style={styles.infoGrid}>
         <InfoTile iconName="time-outline" title="Open" subtitle={openingSummary} />
         <InfoTile
@@ -546,7 +577,7 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
         />
       )}
 
-      {services.length > 3 && (
+      {/* {services.length > 3 && (
         <Pressable
           style={styles.viewAllTreatmentsButton}
           accessibilityRole="button"
@@ -555,7 +586,7 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
           <Text style={styles.viewAllTreatmentsText}>View all treatments</Text>
           <Ionicons name="chevron-forward" size={18} color="#2D2B28" />
         </Pressable>
-      )}
+      )} */}
 
       <View style={[styles.sectionHeader, styles.reviewSectionHeader]}>
         <Text style={styles.sectionTitle}>What Guests Say</Text>
@@ -615,20 +646,20 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
           <Text style={styles.locationAddress} numberOfLines={3}>
             {spaAddress}
           </Text>
-          <Pressable
-            style={styles.directionButton}
-            onPress={handleGetDirections}
-            accessibilityRole="button"
-            accessibilityLabel="Get directions"
-          >
-            <Ionicons name="navigate" size={21} color="#FFFFFF" />
-          </Pressable>
+          {spa.google_maps_url &&
+            <Pressable
+              style={styles.directionButton}
+              onPress={handleGetDirections}
+              accessibilityRole="button"
+              accessibilityLabel="Get directions"
+            >
+              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+            </Pressable>
+          }
         </View>
       </View>
 
-      <Text style={styles.descriptionText} numberOfLines={3}>
-        {spaDescription}
-      </Text>
+      
 
       {showBookBar && (
         <View style={styles.bookNowRow}>
@@ -640,10 +671,10 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
             style={({ pressed }) => [
               styles.bookNowAction,
               pressed && styles.bookNowActionPressed,
-              services.length === 0 && styles.bookNowActionDisabled,
+              !spa.is_bookable && styles.bookNowActionDisabled,
             ]}
             onPress={handlePressBookNow}
-            disabled={services.length === 0}
+            disabled={!spa.is_bookable}
             accessibilityRole="button"
             accessibilityLabel="Book now"
           >
@@ -837,7 +868,7 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginBottom: 18,
+    marginBottom: 0,
   },
   sectionTitle: {
     color: '#282725',
@@ -850,14 +881,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
   },
   reviewSectionHeader: {
-    marginTop: 2,
+    marginTop: 12,
   },
   serviceCard: {
     marginHorizontal: HORIZONTAL_SCREEN_PADDING,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     paddingHorizontal: 24,
-    paddingVertical: 18,
+    paddingVertical: 15,
     shadowColor: '#7E6342',
     shadowOpacity: 0.06,
     shadowRadius: 14,
@@ -1048,7 +1079,7 @@ const styles = StyleSheet.create({
   },
   locationCard: {
     marginHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginBottom: 28,
+    marginBottom: 15,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
@@ -1059,7 +1090,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   mapPreview: {
-    height: 174,
+    // height: 174,
     overflow: 'hidden',
     backgroundColor: '#C7D0D0',
   },
@@ -1140,16 +1171,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   descriptionText: {
-    color: '#7C746B',
+    color: '#1f1f1f',
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 21,
     paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginTop: -8,
+    marginTop: -20,
+    marginBottom:12
   },
   bookNowRow: {
-    marginTop: 18,
-    minHeight: 104,
+    marginTop: 0,
+    minHeight: 50,
     backgroundColor: '#FBF3EA',
     flexDirection: 'row',
     alignItems: 'center',

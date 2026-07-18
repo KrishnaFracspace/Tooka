@@ -40,7 +40,7 @@ function BookingOptionCard({ option, selected, onPress }: Props): React.ReactEle
           </View>
           <View style={styles.optionCopy}>
             <Text style={styles.optionTitle}>{option.title}</Text>
-            <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
+            {/* <Text style={styles.optionSubtitle}>{option.subtitle}</Text> */}
             <Text style={styles.optionDescription}>{option.description}</Text>
           </View>
         </View>

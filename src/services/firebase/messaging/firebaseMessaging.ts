@@ -1,14 +1,49 @@
+import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 
 class FirebaseMessagingService {
-  async getToken() {
-    return await messaging().getToken();
+  /**
+   * Returns the current FCM token.
+   * On iOS, the device must first be registered with APNs.
+   */
+  async getToken(): Promise<string | null> {
+    try {
+      // iOS requires registration before requesting the FCM token.
+      if (Platform.OS === 'ios') {
+        await messaging().registerDeviceForRemoteMessages();
+      }
+
+      const token = await messaging().getToken();
+
+      console.log('[FCM] Token:', token);
+
+      return token;
+    } catch (error) {
+      console.error('[FCM] Failed to fetch token:', error);
+      return null;
+    }
   }
 
-  async deleteToken() {
-    await messaging().deleteToken();
+  /**
+   * Deletes the current FCM token.
+   */
+  async deleteToken(): Promise<void> {
+    try {
+      if (Platform.OS === 'ios') {
+        await messaging().registerDeviceForRemoteMessages();
+      }
+
+      await messaging().deleteToken();
+
+      console.log('[FCM] Token deleted');
+    } catch (error) {
+      console.error('[FCM] Failed to delete token:', error);
+    }
   }
 
+  /**
+   * Listen for FCM token refresh.
+   */
   onTokenRefresh(listener: (token: string) => void) {
     return messaging().onTokenRefresh(listener);
   }

@@ -18,6 +18,7 @@ export interface SpaDetails {
   address_line2: string | null;
   phone: string | null;
   whatsapp_number: string | null;
+  google_maps_url: string;
   // API may return these as numeric strings (e.g. "5.0") rather than numbers.
   rating_google: number | string | null;
   review_count_google: number | string | null;

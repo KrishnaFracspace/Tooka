@@ -5,6 +5,6 @@ export const bookingOption: BookingOption = {
   title: 'Standard slot booking',
   subtitle: 'Refundable token charge',
   description:
-    'A refundable booking token reserves your slot and reduces no - shows',
+    'The booking amount is refundable only as per the applicable Terms & Conditions.',
   price: 199,
 };

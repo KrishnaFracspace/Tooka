@@ -97,7 +97,11 @@ export function mapApiSpaToMappedSpa(
 
   // Derive distance
   const distanceStr =
-    (spa as any).distance || calculateDistance(userLat, userLng, lat, lng);
+    calculateDistance(userLat, userLng, lat, lng);
+
+    // console.log("Distancee: ", distanceStr);
+
+  // const dist = distanceStr > 999 ? `${Math.floor(distanceStr/1000)} Km away` : `${Math.floor(distanceStr)} m away`;
 
   // Parse open status
   let isOpenVal: boolean | null = null;
@@ -117,11 +121,12 @@ export function mapApiSpaToMappedSpa(
     distance: distanceStr,
     description: spa.tagline ?? 'A premium relaxation experience offering therapies and massages.',
     address: spa.locality_name ?? spa.city_name ?? 'Location unavailable',
-    subtitle: `${distanceStr} · Available Now`,
+    subtitle: `${distanceStr} Away from you`,
     typeA: 'Massage',
     typeB: 'Spa',
   };
 }
+// console.log("MappedAPi: ", mapApiSpaToMappedSpa);
 
 export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -236,6 +241,7 @@ export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
         const mappedNewSpas = newSpasRaw.map((spa) =>
           mapApiSpaToMappedSpa(spa, lat, lng),
         );
+        // console.log("Updated spas: ", mappedNewSpas);
 
         if (__DEV__) {
           console.log(
@@ -272,6 +278,7 @@ export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
             const uniqueNewSpas = mappedNewSpas.filter((s) => !existingIds.has(s.id));
             updatedSpas = [...prev, ...uniqueNewSpas];
           }
+          // console.log("Updated spas: ", updatedSpas);
 
           return updatedSpas;
         });

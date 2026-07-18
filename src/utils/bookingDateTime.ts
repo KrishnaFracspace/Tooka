@@ -53,5 +53,5 @@ export const formatPaymentCompletedAt = (
     hour12: true,
   });
 
-  return `${formattedDate} • ${formattedTime.toUpperCase()}`;
+  return `${formattedDate} | ${formattedTime.toUpperCase()}`;
 };

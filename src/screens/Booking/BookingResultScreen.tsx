@@ -168,7 +168,7 @@ function BookingResultScreen(): React.ReactElement {
   const state = STATE_COPY[type];
   const isProcessing = type === 'processing' || type === 'timeout';
   const maxWidth = Math.min(width - 40, 430);
-  const topPadding = Math.max(insets.top + 54, height < 720 ? 42 : 78);
+  const topPadding = Math.max(insets.top + 20, height < 720 ? 20 : 40);
   const bookingCode = route.params?.bookingReference ?? route.params?.bookingId;
   const serviceText = route.params?.serviceName
     ? route.params.serviceDurationMinutes
@@ -389,7 +389,7 @@ function BookingResultScreen(): React.ReactElement {
             accessibilityLabel={state.title}
           >
             <Animated.View style={isProcessing ? spinStyle : undefined}>
-              <Ionicons name={state.icon} size={30} color={state.color} />
+              <Ionicons name={state.icon} size={50} color={state.color} />
             </Animated.View>
           </Animated.View>
 
@@ -524,13 +524,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconCircle: {
-    width: 40,
-    height: 40,
+    width: 80,
+    height: 80,
     borderRadius: 66,
     backgroundColor: COLORS.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 38,
+    marginBottom: 20
   },
   title: {
     fontFamily: FONTS.heading,
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   },
   bookingIdText: {
     fontFamily: FONTS.heading,
-    fontSize: 18,
+    fontSize: 14,
     color: COLORS.text,
   },
   copyButton: {
@@ -614,8 +614,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.card,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     marginTop: 16,
   },
   sectionTitle: {
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   },
   spaName: {
     fontFamily: FONTS.heading,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.text,
     marginBottom: 5,
   },
@@ -658,9 +658,9 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontFamily: FONTS.heading,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.text,
-    marginBottom: 12,
+    marginBottom: 0,
   },
   infoText: {
     fontFamily: FONTS.body,
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     textAlign: 'center',
     marginTop: 24,
-    marginBottom: 62,
+    marginBottom: 20,
   },
   primaryButton: {
     width: '100%',

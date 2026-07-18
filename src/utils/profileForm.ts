@@ -1,6 +1,9 @@
 import type { EditProfileForm } from '../screens/Profile/EditProfile/types';
 import type { ResidentialLocation, UpdateProfilePayload, UserProfile } from '../types/profile';
 import { removeEmptyProfilePayloadValues } from './profileMappers';
+import { Platform } from 'react-native';
+import { getOnboarding } from './onboardingStorage';
+import { getFcmToken } from './fcmStorage';
 
 const pad = (value: number): string => String(value).padStart(2, '0');
 
@@ -51,11 +54,15 @@ export const formFromProfile = (profile: UserProfile | null): EditProfileForm =>
   };
 };
 
-export const buildUpdateProfilePayload = (
+export const buildUpdateProfilePayload = async (
   form: EditProfileForm,
   currentLocation: { latitude: number; longitude: number } | null,
-): UpdateProfilePayload => {
+): Promise<UpdateProfilePayload> => {
   const displayName = form.displayName.trim() || `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
+  const fcmToken = await getFcmToken();
+  const onboarding = await getOnboarding();
+  console.log("FCM TOken :", fcmToken);
+
   const payload: UpdateProfilePayload = {
     username: displayName,
     fullName: `${form.firstName.trim()} ${form.lastName.trim()}`.trim(),
@@ -64,13 +71,15 @@ export const buildUpdateProfilePayload = (
     phone: form.phoneNumber.replace(/\D/g, ''),
     gender: form.gender.toLowerCase(),
     dateOfBirth: formatDateForApi(form.dateOfBirth),
-    avatar: typeof form.profilePhotoUri === 'string' ? form.profilePhotoUri.trim() : form.profilePhotoUri,
     lat: form.residentialLocation?.latitude,
     lng: form.residentialLocation?.longitude,
     lati: currentLocation?.latitude,
     lang: currentLocation?.longitude,
+    pushToken: fcmToken ?? '',
+    pushTokenPlatform: Platform.OS === 'ios' ? 'ios' : 'android',
+    preferredCategories: onboarding?.answers?.preferences ?? [],
   };
-  // console.log('buildUpdateProfilePayload: form:', form, 'currentLocation:', currentLocation, 'payload:', payload);
+  console.log('buildUpdateProfilePayload: form:', form, 'currentLocation:', currentLocation, 'payload:', payload);
 
   return removeEmptyProfilePayloadValues(payload);
 };

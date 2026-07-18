@@ -74,6 +74,8 @@ const AllBookingScreen: React.FC = () => {
     onRefresh,
   } = useMyBookings();
 
+  // console.log("Upcomming booking: ", upcomingBookings);
+
   const activeBookings = useMemo(() => {
     switch (activeTab) {
       case 'upcoming':

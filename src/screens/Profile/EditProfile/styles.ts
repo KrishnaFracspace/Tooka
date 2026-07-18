@@ -108,7 +108,7 @@ export const styles = StyleSheet.create({
     borderRadius: 17,
     right: '39%',
     bottom: 96,
-    backgroundColor: 'rgba(117,83,5,0.32)',
+    backgroundColor: 'rgba(255, 255, 255, 0.32)',
   },
   headerTitle: {
     fontFamily: FONTS.heading,
@@ -370,7 +370,7 @@ export const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
-    top: 110,
+    top: 100,
     zIndex: 50,
     borderRadius: 14,
     backgroundColor: COLORS.white,

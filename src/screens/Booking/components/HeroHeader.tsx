@@ -27,7 +27,7 @@ function HeroHeader({ service, onBack }: Props): React.ReactElement {
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <Ionicons name="chevron-back" size={32} color={colors.white} />
+            <Ionicons name="chevron-back" size={25} color={colors.white} />
           </Pressable>
         </View>
         <Svg width={width} height={curveHeight} viewBox={`0 0 ${width} ${curveHeight}`} style={styles.curveSvg}>

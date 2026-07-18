@@ -16,10 +16,10 @@ const SearchBar = ({ value, onChangeText, onPressFilter, onPressSearch }) => {
         style={styles.searchInput}
         returnKeyType="search"
       />
-      <View style={{borderLeftWidth:1,height:28,borderColor:'#3c3c3c'}}/>
+      {/* <View style={{borderLeftWidth:1,height:28,borderColor:'#3c3c3c'}}/>
       <Pressable onPress={onPressFilter} style={styles.filterButton}>
         <Ionicons name="options-outline" size={20} color="#3C3C3C" />
-      </Pressable>
+      </Pressable> */}
     </View>
   );
 };
@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     paddingHorizontal: 10,
     paddingVertical:0,
-    // height: 54,
+    height: 45,
     marginBottom: 15,
     shadowColor: '#000',
     shadowOpacity: 0.06,

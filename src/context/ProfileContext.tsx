@@ -20,6 +20,7 @@ import type {
 import { getProfileErrorMessage } from '../utils/profileValidation';
 import { mergeProfile } from '../utils/profileMappers';
 import { resolveImageUri } from '../types/profileImage';
+import { syncProfileMetadata } from '../services/profile/profileSync';
 
 const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
 
@@ -45,6 +46,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+  const [avatarUploading, setAvatarUploading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const inFlightRefresh = useRef<Promise<UserProfile | null> | null>(null);
   const refreshController = useRef<AbortController | null>(null);
@@ -118,7 +120,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setError(null);
 
         try {
-          const nextProfile = await ProfileApi.getProfile(controller.signal);
+          const { profile: nextProfile } = await syncProfileMetadata(controller.signal);
+          if (!nextProfile) {
+            throw new Error('Profile synchronization failed to return a profile');
+          }
+          
           const merged = mergeProfile(nextProfile, {
             currentLocation: currentLocationRef.current ?? nextProfile.currentLocation,
           });
@@ -161,11 +167,36 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [authLoading, isAuthenticated, refreshProfile]);
 
+  const uploadAvatar = useCallback(
+    async (asset: { uri: string; type?: string; fileName?: string }): Promise<string | null> => {
+      setAvatarUploading(true);
+      setError(null);
+      try {
+        const response = await ProfileApi.uploadAvatar(asset);
+        if (response.success && response.data?.avatarUrl) {
+          const newUrl = response.data.avatarUrl;
+          setProfile((prev) => (prev ? mergeProfile(prev, { avatarUrl: newUrl }) : prev));
+          return newUrl;
+        }
+        throw new Error('Upload failed or missing URL in response');
+      } catch (uploadError) {
+        const message = getProfileErrorMessage(uploadError);
+        console.log("Error in avatar upload", uploadError);
+        setError(message);
+        throw uploadError;
+      } finally {
+        setAvatarUploading(false);
+      }
+    },
+    [],
+  );
+
   const updateProfile = useCallback(
     async (payload: UpdateProfilePayload): Promise<UserProfile | null> => {
       if (saving) {
         return profile;
       }
+      console.log("Payloadddd: ", payload);
 
       setSaving(true);
       setError(null);
@@ -183,7 +214,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           phone: payload.phone ?? profile?.phone ?? null,
           gender: payload.gender ?? profile?.gender ?? null,
           dateOfBirth: payload.dateOfBirth ?? profile?.dateOfBirth ?? null,
-          avatarUrl: resolveImageUri(payload.avatar ?? null) ?? profile?.avatarUrl ?? null,
           currentLocation: currentLocationRef.current,
         };
 
@@ -237,10 +267,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       isLoading: loading,
       refreshing,
       saving,
+      avatarUploading,
       error,
       currentLocation,
       refreshProfile,
       updateProfile,
+      uploadAvatar,
       clearProfile,
       setProfile: setLocalProfile,
       setResidentialLocation,
@@ -255,9 +287,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       refreshProfile,
       refreshing,
       saving,
+      avatarUploading,
       setLocalProfile,
       setResidentialLocation,
       updateProfile,
+      uploadAvatar,
     ],
   );
 

@@ -35,7 +35,7 @@ function Header(): React.ReactElement {
       <View style={styles.headerCircleSoft} />
       <View style={styles.headerDotLeft} />
       <View style={styles.headerDotRight} />
-      <View style={styles.headerDotDark} />
+      {/* <View style={styles.headerDotDark} /> */}
       <Text style={styles.headerTitle}>Complete Your Profile</Text>
       <Text style={styles.headerSubtitle}>Tell us a little more about you.</Text>
     </View>

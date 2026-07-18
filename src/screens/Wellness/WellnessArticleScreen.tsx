@@ -76,7 +76,7 @@ export const WellnessArticleScreen: React.FC = () => {
           <DidYouKnowCard content={article.didYouKnow} />
         )}
 
-        {article.recommendedSpas && article.recommendedSpas.length > 0 && (
+        {/* {article.recommendedSpas && article.recommendedSpas.length > 0 && (
           <ArticleSection>
             <Text style={styles.spasHeader}>Book Session</Text>
             <FlatList
@@ -88,7 +88,7 @@ export const WellnessArticleScreen: React.FC = () => {
               contentContainerStyle={{ paddingRight: 20 }}
             />
           </ArticleSection>
-        )}
+        )} */}
       </ScrollView>
     </View>
   );

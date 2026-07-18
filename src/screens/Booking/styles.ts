@@ -92,6 +92,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 18,
+    flexWrap:'wrap',
     ...sharedShadow,
   },
   serviceTitle: {
@@ -335,7 +336,7 @@ export const styles = StyleSheet.create({
     color: colors.white,
   },
   optionSection: {
-    paddingTop: 34,
+    paddingTop: 24,
   },
   optionCard: {
     // minHeight: 134,
@@ -346,6 +347,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 15,
     overflow: 'hidden',
+    marginTop:15
   },
   optionTopRow: {
     flexDirection: 'row',
@@ -370,7 +372,7 @@ export const styles = StyleSheet.create({
   },
   optionCopy: {
     flex: 1,
-    paddingRight: 84,
+    paddingRight: 70,
   },
   optionTitle: {
     fontFamily: fonts.heading,
@@ -387,7 +389,7 @@ export const styles = StyleSheet.create({
     marginTop: 10,
     fontFamily: fonts.regular,
     fontSize: 11,
-    // lineHeight: 22,
+    lineHeight: 17,
     color: colors.muted,
   },
   priceBubble: {

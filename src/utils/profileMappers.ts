@@ -114,6 +114,9 @@ export const normalizeProfileResponse = (response: ProfileApiResponse): UserProf
     isActive: booleanOrNull(raw.isActive),
     currentLocation: normalizeCurrentLocation(raw),
     residentialLocation: normalizeResidentialLocation(raw),
+    pushToken: pickString(raw, ['pushToken', 'fcmToken']),
+    pushTokenPlatform: pickString(raw, ['pushTokenPlatform', 'platform']),
+    preferredCategories: Array.isArray(raw.preferredCategories) ? raw.preferredCategories : null,
   };
 };
 
@@ -143,6 +146,9 @@ export const mergeProfile = (
   isActive: next.isActive ?? previous?.isActive ?? null,
   currentLocation: next.currentLocation ?? previous?.currentLocation ?? null,
   residentialLocation: next.residentialLocation ?? previous?.residentialLocation ?? null,
+  pushToken: next.pushToken ?? previous?.pushToken ?? null,
+  pushTokenPlatform: next.pushTokenPlatform ?? previous?.pushTokenPlatform ?? null,
+  preferredCategories: next.preferredCategories ?? previous?.preferredCategories ?? null,
 });
 
 export const removeEmptyProfilePayloadValues = (

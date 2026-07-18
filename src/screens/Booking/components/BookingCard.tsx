@@ -6,7 +6,7 @@
  *
  * Layout (per Figma):
  *  ┌──────────────────────────────────────────────┐
- *  │  [Date & Time]          [Badge/Toggle]        │
+ *  │  [Date & Time]          [Badge/Toggle]       │
  *  ├──────────────────────────────────────────────┤
  *  │  [Image]  │  Spa Name                        │
  *  │           │  📍 Location                     │
@@ -14,9 +14,9 @@
  *  │           │  👤 1 Person                     │
  *  │           │  Booking ID: TK123456            │
  *  ├──────────────────────────────────────────────┤
- *  │  [Chat With Spa]       [Free Call Spa]        │ ← Upcoming
- *  │  [Book Again]          [View Receipt]         │ ← Completed
- *  │            [View Receipt]                     │ ← Cancelled
+ *  │  [Chat With Spa]       [Free Call Spa]       │ ← Upcoming
+ *  │  [Book Again]          [View Receipt]        │ ← Completed
+ *  │            [View Receipt]                    │ ← Cancelled
  *  └──────────────────────────────────────────────┘
  */
 
@@ -40,7 +40,7 @@ import { getBookingSection } from '../../../utils/getBookingSection';
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const FALLBACK_IMAGE = {
-  uri: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=60',
+  uri: 'https://d2f15ematxpwp4.cloudfront.net/appImages/bookingPlaceholder.png',
 };
 
 const CARD_IMAGE_ASPECT = 100 / 130; // width / height ≈ Figma ratio
@@ -362,7 +362,7 @@ const BookingCard = React.memo<BookingCardProps>(function BookingCard({
           ]}
         >
           <Image
-            source={booking.spaImage ? { uri: booking.spaImage } : FALLBACK_IMAGE}
+            source={booking.raw.spa_snapshot?.cover_photo_url ? { uri: booking.raw.spa_snapshot?.cover_photo_url } : FALLBACK_IMAGE}
             style={styles.spaImage}
             resizeMode="cover"
             accessibilityRole="image"
@@ -383,7 +383,7 @@ const BookingCard = React.memo<BookingCardProps>(function BookingCard({
 
           <BookingInfoRow
             iconName="location-sharp"
-            label={booking.location || 'Location unavailable'}
+            label={`${booking?.raw?.spa_snapshot?.locality_name}, ${booking?.raw?.spa_snapshot?.city_name}` || 'Location unavailable'}
           />
 
           <BookingInfoRow
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
   contentRow: {
     flexDirection: 'row',
     padding: 14,
-    gap: 12,
+    gap: 14,
   },
 
   // ── Image ──
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   detailsColumn: {
     flex: 1,
     flexShrink: 1,
-    gap: 5,
+    gap: 8,
   },
   spaName: {
     fontFamily: 'Sora-SemiBold',

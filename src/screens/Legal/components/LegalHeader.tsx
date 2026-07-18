@@ -29,7 +29,7 @@ function LegalHeader({ title, onBack }: Props): React.ReactElement {
 
   return (
     <View
-      style={[styles.header, { paddingTop: insets.top + 8 }]}
+      style={[styles.header, { }]}
       onLayout={handleLayout}
       accessibilityRole="header"
     >
@@ -59,7 +59,7 @@ function LegalHeader({ title, onBack }: Props): React.ReactElement {
       <View style={styles.headerCircleLarge} pointerEvents="none" />
       <View style={styles.headerCircleSoft} pointerEvents="none" />
       <View style={styles.headerDotOne} pointerEvents="none" />
-      <View style={styles.headerDotTwo} pointerEvents="none" />
+      {/* <View style={styles.headerDotTwo} pointerEvents="none" /> */}
 
       <View style={styles.headerRow}>
         <Pressable

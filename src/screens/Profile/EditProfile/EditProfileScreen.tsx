@@ -73,7 +73,7 @@ function EditProfileScreen(): React.ReactElement {
   const [showPlacesSearch, setShowPlacesSearch] = useState<boolean>(false);
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [imagePicking, setImagePicking] = useState<boolean>(false);
-  const { profile, currentLocation, saving, updateProfile, setResidentialLocation } = useProfile();
+  const { profile, currentLocation, saving, avatarUploading, updateProfile, uploadAvatar, setResidentialLocation } = useProfile();
   // console.log('EditProfileScreen Render. Profile:', profile, 'CurrentLocation:', currentLocation, 'Saving:', saving);
   const profileHydrationKey = useMemo(
     () => [
@@ -126,12 +126,12 @@ function EditProfileScreen(): React.ReactElement {
   );
 
   const handleChoosePhoto = useCallback(() => {
-    if (imagePicking) {
+    if (imagePicking || avatarUploading) {
       return;
     }
 
     setImagePicking(true);
-    launchImageLibrary(imagePickerOptions, (response) => {
+    launchImageLibrary(imagePickerOptions, async (response) => {
       setImagePicking(false);
       if (response.didCancel || response.errorCode) {
         if (response.errorCode) {
@@ -146,7 +146,7 @@ function EditProfileScreen(): React.ReactElement {
 
       const [asset] = response.assets ?? [];
       const prepared = asset ? prepareProfileImageUpload(asset) : null;
-      if (!prepared) {
+      if (!prepared || typeof prepared === 'string') {
         Toast.show({
           type: 'error',
           text1: 'Photo selection failed',
@@ -156,8 +156,26 @@ function EditProfileScreen(): React.ReactElement {
       }
 
       updateField('profilePhotoUri', prepared);
+
+      try {
+        const newUrl = await uploadAvatar(prepared);
+        if (newUrl) {
+          updateField('profilePhotoUri', newUrl);
+          Toast.show({
+            type: 'success',
+            text1: 'Avatar updated successfully',
+          });
+        }
+      } catch (error) {
+        updateField('profilePhotoUri', profile?.avatarUrl ?? null);
+        Toast.show({
+          type: 'error',
+          text1: 'Upload failed',
+          text2: 'Could not upload avatar. Please try again.',
+        });
+      }
     });
-  }, [imagePicking, updateField]);
+  }, [imagePicking, avatarUploading, updateField, uploadAvatar, profile?.avatarUrl]);
 
   const handleSelectGender = useCallback(
     (gender: Gender) => {
@@ -167,11 +185,11 @@ function EditProfileScreen(): React.ReactElement {
   );
 
   const handlePressDate = useCallback(() => {
-    if (showDatePicker) {
-      return;
-    }
+    // if (showDatePicker) {
+    //   return;
+    // }
 
-    setShowDatePicker(true);
+    setShowDatePicker(!showDatePicker);
   }, [showDatePicker]);
 
   const handleDateChange = useCallback(
@@ -237,7 +255,7 @@ function EditProfileScreen(): React.ReactElement {
     }
 
     setSubmitted(true);
-    const payload = buildUpdateProfilePayload(form, currentLocation);
+    const payload = await buildUpdateProfilePayload(form, currentLocation);
     const validation = validateProfileUpdate(payload, form.residentialLocation);
 
     // console.log('handleSave: payload:', payload, 'validation:', validation);
@@ -400,6 +418,7 @@ function EditProfileScreen(): React.ReactElement {
                 accessibilityRole="button"
                 accessibilityLabel="Close address search"
               />
+              <Pressable onPress={() => {setShowPlacesSearch(false)}} style={{backgroundColor:'#000000b5',position:'absolute',top:0,left:0,right:0,bottom:0,zIndex:100}}>
               <GooglePlacesAutocomplete
                 placeholder="Search residential address"
                 fetchDetails
@@ -428,6 +447,7 @@ function EditProfileScreen(): React.ReactElement {
                   description: styles.placesDescription,
                 }}
               />
+              </Pressable>
             </>
           ) : null}
         </View>

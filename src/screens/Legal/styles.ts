@@ -183,7 +183,7 @@ export const styles = StyleSheet.create({
     borderRadius: 7,
     right: 64,
     bottom: 56,
-    backgroundColor: 'rgba(117, 83, 5, 0.35)',
+    backgroundColor: 'rgba(224, 188, 188, 0.35)',
   },
   headerRow: {
     flexDirection: 'row',

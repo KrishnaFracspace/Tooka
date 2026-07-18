@@ -55,6 +55,9 @@ export interface BackendBookingRaw {
   spa_snapshot?: {
     name: string;
     address: string;
+    locality_name: string;
+    city_name: string;
+    cover_photo_url: string;
   }
   payment?: {
     payment_amount?: number;

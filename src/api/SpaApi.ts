@@ -13,6 +13,16 @@ export interface NearbySpaParams {
   lng: number;
 }
 
+export interface DiscoverResponse {
+  featuredSpas: Spa[];
+}
+
+interface DiscoverRawResponse {
+  success?: boolean;
+  data?: Spa[];
+  curated?: Spa[];
+}
+
 interface ApiResponse<T> {
   data: T;
 }
@@ -21,17 +31,22 @@ export const SpaApi = {
   /**
    * Get spas by city
    */
-  getSpasByCity: async (city: string): Promise<Spa[]> => {
-    const response = await axiosClient.get<ApiResponse<Spa[]>>(
-      '/spa/spas/discover',
+  getSpasByCity: async (city: string, signal?: AbortSignal): Promise<DiscoverResponse> => {
+    const response = await authAxiosClient.get<DiscoverRawResponse>(
+      '/spas/discover',
       {
         params: {
           city,
         },
+        signal,
       },
     );
 
-    return Array.isArray(response.data?.data) ? response.data.data : [];
+    const data = Array.isArray(response.data?.data) ? response.data.data : [];
+    const curated = Array.isArray(response.data?.curated) ? response.data.curated : [];
+    const featuredSpas = curated.length > 0 ? curated : data;
+
+    return { featuredSpas };
   },
 
   /**

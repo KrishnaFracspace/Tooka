@@ -29,7 +29,7 @@ function PhoneInput({
           accessibilityLabel="Select country code"
         >
           <Text style={styles.phoneCodeText}>{countryCode}</Text>
-          <Ionicons name="chevron-down" size={20} color={COLORS.placeholder} />
+          {/* <Ionicons name="chevron-down" size={20} color={COLORS.placeholder} /> */}
         </Pressable>
         <View style={styles.phoneDivider} />
         <TextInput

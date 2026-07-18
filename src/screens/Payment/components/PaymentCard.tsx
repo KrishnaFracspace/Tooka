@@ -79,7 +79,7 @@ const PaymentCard = React.memo<PaymentCardProps>(function PaymentCard({
   const paymentDateTimeStr = formatDateTime(paymentDateIso) || '--';
 
   const spaName = booking.spaName || 'Unknown Spa';
-  const location = booking.raw.spa_snapshot?.address;
+  const location = `${booking.raw.spa_snapshot?.locality_name}, ${booking.raw.spa_snapshot?.city_name}` || booking.raw.spa_snapshot?.address;
   const spaImage = booking.spaImage ? { uri: booking.spaImage } : FALLBACK_IMAGE;
 
   const amountStr = formatCurrency(booking.raw.amount_paid);
@@ -117,19 +117,22 @@ const PaymentCard = React.memo<PaymentCardProps>(function PaymentCard({
       {/* ── Middle Section ── */}
       <View style={styles.middleSection}>
         <View style={styles.middleLeft}>
-          <Image
+          {/* <Image
             source={spaImage}
             style={styles.spaImage}
             resizeMode="cover"
             accessibilityLabel={`${spaName} image`}
-          />
+          /> */}
+          <View style={styles.spaIcon}>
+            <Icon name={'flower'} size={20} color={'#FFB02E'}/>
+          </View>
           <View style={styles.spaInfo}>
             <Text style={styles.spaNameText} numberOfLines={1}>
               {spaName}
             </Text>
             
             {location ? (
-              <View style={{flexDirection:'row',alignItems:'center',marginTop:5}}>
+              <View style={{flexDirection:'row',alignItems:'center',marginTop:0}}>
                 <Icon name='location-outline' size={13} color={'#8A8A8A'} style={{marginRight: 2}}/>
                 <Text style={styles.locationText} numberOfLines={1}>
                   {location}
@@ -291,6 +294,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     marginRight: 16,
+  },
+  spaIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF7EE',
+    marginRight: 12,
+    alignItems:'center',justifyContent:'center'
   },
   spaImage: {
     width: 44,

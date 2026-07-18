@@ -5,12 +5,18 @@ import {
   NotificationHandler,
   NotificationPermission,
 } from '../services/firebase/messaging';
+import { saveFcmToken } from '../utils/fcmStorage';
+import { syncProfileMetadata } from '../services/profile/profileSync';
+import { useProfile } from '../context/ProfileContext';
 
 export default function useNotifications() {
+  const { setProfile } = useProfile();
+
   useEffect(() => {
     const initializeNotifications = async () => {
       try {
         const granted = await NotificationPermission.requestPermission();
+        console.log("Granted fcm token: ", granted);
 
         if (!granted) {
           console.log('[FCM] Notification permission denied');
@@ -22,9 +28,12 @@ export default function useNotifications() {
         const token = await FirebaseMessaging.getToken();
 
         console.log('[FCM] Token:', token);
+        if (token) {
+          await saveFcmToken(token);
+        }
 
-        // TODO:
-        // Send token to Tooka backend
+        // Trigger sync manually if needed (optional, since ProfileContext triggers it on mount)
+        // But doing it here ensures token is saved before sync.
       } catch (error) {
         console.log('[FCM] Initialization Error', error);
       }
@@ -35,15 +44,24 @@ export default function useNotifications() {
     NotificationHandler.initialize();
 
     const unsubscribeTokenRefresh =
-      FirebaseMessaging.onTokenRefresh(token => {
+      FirebaseMessaging.onTokenRefresh(async (token) => {
         console.log('[FCM] Token refreshed:', token);
+        if (token) {
+          await saveFcmToken(token);
+        }
 
-        // TODO:
-        // Update token on backend
+        try {
+          const { updated, profile } = await syncProfileMetadata();
+          if (updated && profile) {
+            setProfile(profile);
+          }
+        } catch (error) {
+          console.log('[FCM] Token refresh sync error:', error);
+        }
       });
 
     return () => {
       unsubscribeTokenRefresh();
     };
-  }, []);
+  }, [setProfile]);
 }

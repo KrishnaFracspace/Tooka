@@ -40,6 +40,9 @@ export interface UserProfile {
   isActive: boolean | null;
   currentLocation: ProfileCurrentLocation | null;
   residentialLocation: ResidentialLocation | null;
+  pushToken: string | null;
+  pushTokenPlatform: 'ios' | 'android' | string | null;
+  preferredCategories: string[] | null;
 }
 
 export interface ProfileApiResponse {
@@ -47,6 +50,14 @@ export interface ProfileApiResponse {
   data?: Partial<UserProfile> | null;
   profile?: Partial<UserProfile> | null;
   user?: Partial<UserProfile> | null;
+}
+
+export interface AvatarUploadResponse {
+  success: boolean;
+  data: {
+    id: string;
+    avatarUrl: string;
+  };
 }
 
 export interface UpdateProfilePayload {
@@ -57,11 +68,13 @@ export interface UpdateProfilePayload {
   phone?: string;
   gender?: string;
   dateOfBirth?: string;
-  avatar?: ProfileImage;
   lat?: number;
   lng?: number;
   lati?: number;
   lang?: number;
+  pushToken?: string;
+  pushTokenPlatform?: 'ios' | 'android';
+  preferredCategories?: string[];
 }
 
 export interface ProfileContextValue {
@@ -70,10 +83,12 @@ export interface ProfileContextValue {
   isLoading: boolean;
   refreshing: boolean;
   saving: boolean;
+  avatarUploading: boolean;
   error: string | null;
   currentLocation: ProfileCurrentLocation | null;
   refreshProfile: (options?: { force?: boolean }) => Promise<UserProfile | null>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<UserProfile | null>;
+  uploadAvatar: (asset: { uri: string; type?: string; fileName?: string }) => Promise<string | null>;
   clearProfile: () => void;
   setProfile: (profile: UserProfile | null) => void;
   setResidentialLocation: (location: ResidentialLocation | null) => void;
