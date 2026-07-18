@@ -28,7 +28,7 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 type ProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'BottomNavigation'>;
 
-const APP_VERSION = '0.0.2';
+const APP_VERSION = '1.0.3';
 const SUPPORT_PHONE = 'tel:+919247952343';
 const SUPPORT_EMAIL = 'mailto:hello@tooka.app';
 
