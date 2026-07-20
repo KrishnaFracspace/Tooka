@@ -1,5 +1,4 @@
 import axiosClient from './axiosClient';
-import tookaAxiosClient from './tookaAxiosClient';
 import type { Spa } from '../types/spa';
 import type { SpaDetails } from '../types/spaDetails';
 import authAxiosClient from './authAxiosClient';
