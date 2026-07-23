@@ -9,6 +9,7 @@ import { LocationProvider } from './src/context/LocationContext';
 import { NearbySpaProvider } from './src/context/NearbySpaContext';
 import { ProfileProvider } from './src/context/ProfileContext';
 import { PaymentProvider } from './src/context/PaymentContext';
+import { CallProvider } from './src/context/CallContext';
 
 function App() {
   return (
@@ -19,7 +20,9 @@ function App() {
             <ProfileProvider>
               <NearbySpaProvider>
                 <PaymentProvider>
-                  <AppNavigator />
+                  <CallProvider>
+                    <AppNavigator />
+                  </CallProvider>
                 </PaymentProvider>
               </NearbySpaProvider>
             </ProfileProvider>

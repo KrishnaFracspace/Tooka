@@ -51,6 +51,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tooka needs microphone access so you can securely talk with the spa without sharing your personal phone number.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Tooka needs access to your camera if you choose to take photos.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
@@ -107,6 +109,7 @@
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>audio</string>
 		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>

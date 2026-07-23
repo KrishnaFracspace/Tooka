@@ -33,8 +33,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BackendBookingListItem } from '../../../types/booking';
+import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { getBookingSection } from '../../../utils/getBookingSection';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -170,18 +172,29 @@ const BookingInfoRow = React.memo<BookingInfoRowProps>(function BookingInfoRow({
 
 type BookingActionsProps = {
   section: BookingSection;
+  booking: BackendBookingListItem;
 };
 
 const BookingActions = React.memo<BookingActionsProps>(function BookingActions({
   section,
+  booking,
 }) {
   const handleChatWithSpa = useCallback(() => {
     // Navigation / business logic preserved externally
   }, []);
+  // console.log("bookinddd: ", booking);
+
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const handleFreeCallSpa = useCallback(() => {
-    // Navigation / business logic preserved externally
-  }, []);
+    navigation.navigate('CallScreen', {
+      bookingId: booking.id,
+      spaId: (booking.raw.spa_id as string) || (booking.raw.spa as any)?.id || 'unknown_spa',
+      callType: 'voice',
+      spaName: booking.spaName || 'Unknown Spa',
+      spaAvatar: booking.raw?.spa_snapshot?.cover_photo_url || FALLBACK_IMAGE.uri,
+    });
+  }, [navigation, booking]);
 
   const handleBookAgain = useCallback(() => {
     // Navigation / business logic preserved externally
@@ -411,10 +424,10 @@ const BookingCard = React.memo<BookingCardProps>(function BookingCard({
       </View>
 
       {/* ── Bottom Actions Divider ── */}
-      {/* <View style={styles.actionDivider} /> */}
+      <View style={styles.actionDivider} />
 
       {/* ── Actions ── */}
-      {/* <BookingActions section={section} /> */}
+      <BookingActions section={section} booking={booking} />
     </View>
   );
 });
