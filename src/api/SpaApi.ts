@@ -52,8 +52,8 @@ export const SpaApi = {
    * Get spa details
    */
   getSpaDetails: async (spaId: string, signal?: AbortSignal): Promise<SpaDetails> => {
-    const response = await axiosClient.get<ApiResponse<SpaDetails>>(
-      `/spa/spas/${spaId}`,
+    const response = await authAxiosClient.get<ApiResponse<SpaDetails>>(
+      `/spas/${spaId}`,
       {
         signal,
       },
@@ -72,8 +72,8 @@ export const SpaApi = {
     limit?: number,
     cancelToken?: any,
   ) => {
-    const response = await axiosClient.get(
-      '/spa/spas/discover',
+    const response = await authAxiosClient.get(
+      '/spas/discover',
       {
         params: {
           lat,
