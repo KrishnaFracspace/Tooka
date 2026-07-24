@@ -211,12 +211,12 @@ export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
           : [];
         const meta = response?.pagination;
         // const meta = null;
-        // console.log("Nearby spas", response?.data.length);
-        // console.log('========== API RESPONSE ==========');
-        // console.log(JSON.stringify(response, null, 2));
-        // console.log('==================================');
+        console.log("Nearby spas", response?.data.length);
+        console.log('========== API RESPONSE ==========');
+        console.log(JSON.stringify(response, null, 2));
+        console.log('==================================');
 
-        // console.log('response.data:', response.data);
+        console.log('response.data:', response.data);
 
         // console.log(
         //   'response.data is array:',

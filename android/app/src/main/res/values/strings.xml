@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Tooka</string>
+    <string name="StallionProjectId">6a61a081f34a0abe5b0e59ad</string>
+    <string name="StallionAppToken">spb_ap_1atOeY79j0cGkcKSM4V3btJC7YE9p4os3uLYoj4YGx</string>
 </resources>

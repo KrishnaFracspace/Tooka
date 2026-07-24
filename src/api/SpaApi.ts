@@ -73,7 +73,7 @@ export const SpaApi = {
     cancelToken?: any,
   ) => {
     const response = await axiosClient.get(
-      '/spa/spas/discover',
+      '/spas/discover',
       {
         params: {
           lat,
@@ -85,6 +85,7 @@ export const SpaApi = {
       },
     );
 
+    console.log("Nearby spas: ", response.data);
     return response.data;
   },
 

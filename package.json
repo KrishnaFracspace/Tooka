@@ -39,6 +39,7 @@
     "react-native-reanimated": "^4.5.0",
     "react-native-safe-area-context": "^5.8.0",
     "react-native-screens": "^4.25.2",
+    "react-native-stallion": "^2.4.1",
     "react-native-svg": "^15.15.5",
     "react-native-toast-message": "^2.3.3",
     "react-native-vector-icons": "^10.3.0",
