@@ -85,6 +85,7 @@ export const SpaApi = {
       },
     );
 
+    // console.log("Nearby spas: ", response.data);
     return response.data;
   },
 
