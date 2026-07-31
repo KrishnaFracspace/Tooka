@@ -4,7 +4,9 @@ import { CallState, CallSession } from '../types/call';
 import { socketService } from '../services/call/socketService';
 import { callService } from '../services/call/callService';
 import { agoraService } from '../services/call/agoraService';
+import { callManager } from '../services/call/callManager';
 import { AGORA_CONFIG } from '../config/agora';
+import { callLogger, ENABLE_CALL_DIAGNOSTICS } from '../services/call/callLogger';
 
 interface CallContextType {
   callState: CallState;
@@ -41,6 +43,45 @@ const ALLOWED_TRANSITIONS: Record<CallState, CallState[]> = {
   [CallState.NO_ANSWER]: [CallState.IDLE],
 };
 
+const printCallSummary = (session: CallSession | null, durationSeconds: number, reason: string) => {
+  const sessionId = session?.sessionId || 'global';
+  const audioSnapshot = callLogger.getAudioSnapshot(sessionId);
+  const timeline = callLogger.getTimeline(sessionId);
+
+  const summary = `
+==================================================
+                 CALL SUMMARY
+==================================================
+Session:          ${sessionId}
+Channel:          ${session?.channelName || 'N/A'}
+Local UID:        ${session?.uid || 0}
+Remote UID:       ${session?.agoraUidUser === session?.uid ? session?.agoraUidSpa : session?.agoraUidUser}
+Call Direction:   ${session?.direction || 'N/A'}
+Duration:         ${durationSeconds} seconds
+Reason Ended:     ${reason}
+
+AUDIO STATES:
+Mic Muted:        ${audioSnapshot.micMuted ? 'Yes' : 'No'}
+Speaker Enabled:  ${audioSnapshot.speakerEnabled ? 'Yes' : 'No'}
+Audio Route:      ${audioSnapshot.audioRoute}
+Publish State:    ${audioSnapshot.publishState}
+Subscribe State:  ${audioSnapshot.subscribeState}
+Local State:      ${audioSnapshot.localAudioState}
+Remote State:     ${audioSnapshot.remoteAudioState}
+
+NETWORK QUALITY:
+Tx Quality:       ${audioSnapshot.networkQualityTx}
+Rx Quality:       ${audioSnapshot.networkQualityRx}
+
+Remote Joined:    ${audioSnapshot.remoteJoined ? 'Yes' : 'No'}
+
+ORDERED TIMELINE:
+${timeline.map((event: string, idx: number) => `  ${idx + 1}. ${event}`).join('\n')}
+==================================================
+`;
+  callLogger.info('SUMMARY', summary, { sessionId });
+};
+
 export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [callState, setCallStateInternal] = useState<CallState>(CallState.IDLE);
   const [session, setSession] = useState<CallSession | null>(null);
@@ -53,6 +94,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const callStateRef = useRef(callState);
   const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const durationRef = useRef(duration);
+  const outgoingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const endCallRef = useRef<(() => Promise<void>) | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -69,20 +114,62 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const allowed = ALLOWED_TRANSITIONS[currentState] || [];
     if (allowed.includes(nextState)) {
-      console.log(`[CallContext] Transition: ${currentState} -> ${nextState}`);
+      const startTime = Date.now();
+      callLogger.setCallState(nextState);
+      
+      const ctx = {
+        sessionId: sessionRef.current?.sessionId || 'NO_SESSION',
+        callState: nextState,
+        channelName: sessionRef.current?.channelName || 'N/A',
+        uid: sessionRef.current?.uid || 0
+      };
+
+      callLogger.info('STATE', `Transition: ${currentState} -> ${nextState}`, ctx);
+      callStateRef.current = nextState; // Synchronously update ref to prevent stale state in fast transitions
       setCallStateInternal(nextState);
+      
+      const duration = Date.now() - startTime;
+      callLogger.info('STATE', `Transition completed. Duration: ${duration}ms`, ctx);
     } else {
+      const ctx = {
+        sessionId: sessionRef.current?.sessionId || 'NO_SESSION',
+        callState: currentState,
+        channelName: sessionRef.current?.channelName || 'N/A',
+        uid: sessionRef.current?.uid || 0
+      };
+      callLogger.warn('STATE', `Invalid transition attempt: ${currentState} -> ${nextState}. Ignored.`, ctx);
       console.warn(`[CallContext] Invalid transition attempt: ${currentState} -> ${nextState}. Ignored.`);
     }
   }, []);
 
-  // Initialize Agora Engine once on mount
+  // Initialize Agora Engine on startup
   useEffect(() => {
-    agoraService.initialize(AGORA_CONFIG.appId).catch(console.error);
+    const initAgora = async () => {
+        try {
+            await agoraService.initialize(AGORA_CONFIG.appId);
 
-    // AppState Listener to maintain call sync
+            console.log("[CallContext] Agora initialized");
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    initAgora();
+
+    // AppState Listener to track background/foreground transitions
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      console.log(`[CallContext] AppState changed to: ${nextAppState}`);
+      const current = appStateRef.current;
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        if (current === 'active') {
+          console.log('[APPSTATE]\nBackground');
+          appStateRef.current = nextAppState;
+        }
+      } else if (nextAppState === 'active') {
+        if (current === 'background' || current === 'inactive') {
+          console.log('[APPSTATE]\nForeground');
+          appStateRef.current = 'active';
+        }
+      }
     });
 
     return () => {
@@ -116,30 +203,79 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [callState]);
 
-  const cleanupAndResetCall = useCallback(() => {
-    console.log('[CallContext] Cleaning up call state.');
+  const cleanupAndResetCall = useCallback(async (reason: string = 'unknown') => {
+    console.log(`[CallContext] Cleaning up call state. Reason: ${reason}`);
+    
+    const sessionToSummarize = sessionRef.current;
+    const durationToSummarize = durationRef.current;
+
+    await callService.cleanup(reason);
+
     if (durationTimerRef.current) {
       clearInterval(durationTimerRef.current);
       durationTimerRef.current = null;
     }
+    if (outgoingTimeoutRef.current) {
+      clearTimeout(outgoingTimeoutRef.current);
+      outgoingTimeoutRef.current = null;
+    }
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    
+    try {
+      printCallSummary(sessionToSummarize, durationToSummarize, reason);
+    } catch (e) {
+      console.error('[CallContext] Failed to print call summary', e);
+    }
+
     setSession(null);
     setIsMuted(false);
     setIsSpeaker(false);
     setDuration(0);
-    setErrorMessage(null);
     setCallStateInternal(CallState.IDLE); // Force IDLE as reset
   }, []);
 
   // Handle Agora Callbacks
   useEffect(() => {
-    const handlers = {
-      onJoinChannelSuccess: () => {
+    const handleConnectionLostOrReconnecting = () => {
+      if (callStateRef.current === CallState.CONNECTED || callStateRef.current === CallState.RECONNECTING) {
+        if (callStateRef.current !== CallState.RECONNECTING) {
+          console.log('[NETWORK]\nInternet Lost');
+          console.log('[CALL]\nWaiting for Agora reconnect');
+          setCallState(CallState.RECONNECTING);
+        }
+        if (!reconnectTimerRef.current) {
+          reconnectTimerRef.current = setTimeout(() => {
+            console.log('[CALL]\nReconnect timeout');
+            reconnectTimerRef.current = null;
+            setErrorMessage('Call ended due to network issue.');
+            if (endCallRef.current) {
+              endCallRef.current();
+            }
+          }, 30000);
+        }
+      }
+    };
+
+    const handleReconnected = () => {
+      if (callStateRef.current === CallState.RECONNECTING) {
+        console.log('[NETWORK]\nInternet Restored');
+        console.log('[CALL]\nAgora reconnected');
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
         setCallState(CallState.CONNECTED);
-        setErrorMessage(null);
-      },
+      }
+    };
+
+    const handlers = {
+      // onJoinChannelSuccess is handled directly via Promise in callService.joinPendingSession()
       onLeaveChannel: () => {
         setCallState(CallState.ENDED);
-        setTimeout(() => cleanupAndResetCall(), 2000);
+        setTimeout(() => cleanupAndResetCall('agora_leave_channel'), 2000);
       },
       onUserJoined: (connection: any, remoteUid: number) => {
         if (callStateRef.current === CallState.CONNECTING || callStateRef.current === CallState.RINGING) {
@@ -148,18 +284,24 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       onUserOffline: (connection: any, remoteUid: number, reason: number) => {
         setCallState(CallState.ENDED);
-        callService.endCall(sessionRef.current, durationRef.current || 0, true).catch(console.error);
+        cleanupAndResetCall('remote_user_offline');
       },
       onConnectionStateChanged: (connection: any, state: number, reason: number) => {
-        if (state === 4) setCallState(CallState.RECONNECTING);
-        if (state === 5) {
+        if (state === 4) {
+          handleConnectionLostOrReconnecting();
+        } else if (state === 3) {
+          handleReconnected();
+        } else if (state === 5) {
           setCallState(CallState.FAILED);
           setErrorMessage('Connection failed. Please check your network.');
-          setTimeout(() => cleanupAndResetCall(), 2000);
+          setTimeout(() => cleanupAndResetCall('agora_connection_failed'), 2000);
         }
       },
       onConnectionLost: () => {
-        setCallState(CallState.RECONNECTING);
+        handleConnectionLostOrReconnecting();
+      },
+      onRejoinChannelSuccess: () => {
+        handleReconnected();
       },
       onAudioRoutingChanged: (routing: number) => {
         setIsSpeaker(routing === 4 || routing === 5);
@@ -192,41 +334,96 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [setCallState, cleanupAndResetCall]);
 
-  // Handle Socket Events
+    // Handle Socket Events
   useEffect(() => {
     socketService.connect();
 
-    const handleRinging = () => {
-      setCallState(CallState.RINGING);
+    callManager.setContextActions({
+      setCallState,
+      setSession,
+      cleanupAndResetCall,
+      getCallState: () => callStateRef.current
+    });
+
+    const handleRinging = (payload: any) => {
+      if (payload?.direction === 'inbound') {
+        callManager.handleIncomingCall(payload);
+      } else {
+        setCallState(CallState.RINGING);
+      }
     };
 
-    const handleAnswered = async () => {
+    const handleAnswered = async (payload: any) => {
+      if (outgoingTimeoutRef.current) {
+        clearTimeout(outgoingTimeoutRef.current);
+        outgoingTimeoutRef.current = null;
+      }
+      
+      // Bug #4: Ignore duplicate call_accept socket event if connecting/active session already exists
+      if (
+        callStateRef.current === CallState.CONNECTING ||
+        callStateRef.current === CallState.CONNECTED ||
+        callService.getConnectingSession() ||
+        callService.getActiveSession()
+      ) {
+        console.log('[Socket] Ignoring duplicate call_accept socket event: connecting or active session exists');
+        return; // Ignore duplicate socket events
+      }
+
+      callService.handleCallAccepted(payload);
+
+      const pending = callService.getPendingSession();
+      if (!pending) return;
+
+      callService.movePendingToConnecting();
       setCallState(CallState.CONNECTING);
-      if (sessionRef.current) {
-        try {
-          await callService.joinActiveCall(sessionRef.current);
-        } catch (error) {
-          console.error('[CallContext] Failed to join active call via Agora', error);
-          setCallState(CallState.FAILED);
-          setTimeout(() => cleanupAndResetCall(), 2000);
-        }
+
+      try {
+        await callService.joinPendingSession();
+        callService.promoteConnectingToActive();
+        setCallState(CallState.CONNECTED);
+        setSession(callService.getActiveSession());
+        setErrorMessage(null);
+      } catch (error) {
+        console.error('[CallContext] Failed to join active call via Agora', error);
+        setCallState(CallState.FAILED);
+        cleanupAndResetCall('agora_join_failed');
       }
     };
 
     const handleDeclined = () => {
+      if (outgoingTimeoutRef.current) {
+        clearTimeout(outgoingTimeoutRef.current);
+        outgoingTimeoutRef.current = null;
+      }
       setCallState(CallState.REJECTED);
-      setTimeout(() => cleanupAndResetCall(), 2000);
+      setTimeout(() => cleanupAndResetCall('call_rejected'), 2000);
     };
 
-    const handleCanceled = () => {
+    const handleCanceled = (payload: any) => {
+      if (callStateRef.current === CallState.INCOMING) {
+        callManager.handleRemoteEndOrCancel(payload?.callSessionId || sessionRef.current?.sessionId || '', 'call_canceled');
+        return;
+      }
+      if (outgoingTimeoutRef.current) {
+        clearTimeout(outgoingTimeoutRef.current);
+        outgoingTimeoutRef.current = null;
+      }
       setCallState(CallState.ENDED);
-      setTimeout(() => cleanupAndResetCall(), 2000);
+      setTimeout(() => cleanupAndResetCall('call_canceled'), 2000);
     };
 
-    const handleEnded = () => {
+    const handleEnded = (payload: any) => {
+      if (callStateRef.current === CallState.INCOMING) {
+        callManager.handleRemoteEndOrCancel(payload?.callSessionId || sessionRef.current?.sessionId || '', 'call_ended_remotely');
+        return;
+      }
+      if (outgoingTimeoutRef.current) {
+        clearTimeout(outgoingTimeoutRef.current);
+        outgoingTimeoutRef.current = null;
+      }
       setCallState(CallState.ENDED);
-      callService.endCall(sessionRef.current, durationRef.current || 0, true).catch(console.error);
-      setTimeout(() => cleanupAndResetCall(), 2000);
+      cleanupAndResetCall('call_ended_remotely');
     };
 
     socketService.on('call_ringing', handleRinging);
@@ -254,6 +451,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCallState(CallState.OUTGOING);
       const newSession = await callService.initiateCall(request);
       setSession(newSession);
+
+      // Start 60-second timeout
+      outgoingTimeoutRef.current = setTimeout(async () => {
+        console.warn('[CallContext] Outgoing call timed out after 60 seconds');
+        if (callStateRef.current === CallState.OUTGOING || callStateRef.current === CallState.RINGING) {
+          setCallState(CallState.ENDED);
+          await callService.cancelCall(sessionRef.current!);
+          cleanupAndResetCall();
+        }
+      }, 60000);
     } catch (error) {
       console.error('[CallContext] Failed to initiate call', error);
       setCallState(CallState.FAILED);
@@ -305,7 +512,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       setCallState(CallState.ENDED);
-      await callService.endCall(sessionRef.current, durationRef.current || 0, false);
+      await callService.endCall(sessionRef.current, durationRef.current || 0);
     } catch (error) {
       console.error('[CallContext] Error ending call', error);
     } finally {
@@ -313,7 +520,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [setCallState, cleanupAndResetCall, cancelCall]);
 
+  endCallRef.current = endCall;
+
   const toggleMute = useCallback(() => {
+    console.log(
+    "[UI] Toggle mute",
+    isMuted
+);
     const nextMute = !isMuted;
     callService.toggleMute(nextMute).catch(console.error);
     setIsMuted(nextMute);

@@ -12,6 +12,8 @@ import { CallStatus } from './components/CallStatus';
 import { CallControls } from './components/CallControls';
 import { IncomingActions } from './components/IncomingActions';
 import { CallFooter } from './components/CallFooter';
+import { CallInspectorOverlay } from './components/CallInspectorOverlay';
+import { ENABLE_CALL_DIAGNOSTICS } from '../../services/call/callLogger';
 
 export default function CallScreen() {
   const navigation = useNavigation();
@@ -126,6 +128,15 @@ export default function CallScreen() {
           </>
         )}
       </View>
+      {callState === CallState.RECONNECTING && (
+        <View style={styles.reconnectOverlay}>
+          <Text style={styles.reconnectTitle}>Connection lost.</Text>
+          <Text style={styles.reconnectSubtitle}>Trying to reconnect...</Text>
+        </View>
+      )}
+      {ENABLE_CALL_DIAGNOSTICS && (
+        <CallInspectorOverlay sessionId={session?.sessionId} callState={callState} />
+      )}
     </View>
   );
 }
@@ -163,5 +174,33 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingBottom: 20,
     alignItems: 'center',
+  },
+  reconnectOverlay: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    zIndex: 10,
+  },
+  reconnectTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  reconnectSubtitle: {
+    color: '#AAA',
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
   },
 });

@@ -31,6 +31,7 @@ import { Crashlytics, CrashlyticsKeys } from '../services/firebase/crashlytics';
 import useNotifications from '../hooks/useNotifications';
 import { WellnessArticleScreen } from '../screens/Wellness';
 import CallScreen from '../screens/Call/CallScreen';
+import IncomingCallScreen from '../screens/Call/IncomingCallScreen';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RootStackParamList — single source of navigation type truth.
@@ -140,6 +141,7 @@ export type RootStackParamList = {
     spaAvatar: string;
     isIncoming?: boolean;
   };
+  IncomingCall: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -224,6 +226,12 @@ const AppNavigator = () => {
         <Stack.Screen
           name="CallScreen"
           component={CallScreen}
+          options={{ presentation: 'fullScreenModal' }}
+        />
+
+        <Stack.Screen
+          name="IncomingCall"
+          component={IncomingCallScreen}
           options={{ presentation: 'fullScreenModal' }}
         />
       </Stack.Navigator>

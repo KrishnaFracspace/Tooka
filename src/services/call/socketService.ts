@@ -138,24 +138,51 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type SocketEventListener = (data: any) => void;
 
+const getLogContext = (): any => {
+  try {
+    const { callService } = require('./callService');
+    const { callLogger } = require('./callLogger');
+    const pending = callService.getPendingSession();
+    const connecting = callService.getConnectingSession();
+    const active = callService.getActiveSession();
+    const session = active || connecting || pending;
+    
+    return {
+      sessionId: session?.sessionId || 'NO_SESSION',
+      callState: callLogger.getCallState(),
+      channelName: session?.channelName || 'N/A',
+      uid: session?.uid || 0
+    };
+  } catch (e) {
+    return { sessionId: 'NO_SESSION', callState: 'UNKNOWN' };
+  }
+};
+
 class SocketService {
   private socket: Socket | null = null;
   private listeners: Record<string, Set<SocketEventListener>> = {};
 
   async connect(): Promise<void> {
+    const startTime = Date.now();
+    const { callLogger } = require('./callLogger');
+    const ctx = getLogContext();
+    callLogger.info('SOCKET', 'ENTER: connect', ctx);
+
     if (this.socket && this.socket.connected) {
-      console.log('[SocketService] Already connected.');
+      const duration = Date.now() - startTime;
+      callLogger.info('SOCKET', `Already connected. Duration: ${duration}ms`, ctx);
       return;
     }
 
     try {
       const token = await AsyncStorage.getItem('authToken');
       if (!token) {
-        console.warn('[SocketService] Cannot connect without auth token.');
+        const duration = Date.now() - startTime;
+        callLogger.warn('SOCKET', `Cannot connect without auth token. Duration: ${duration}ms`, ctx);
         return;
       }
 
-      console.log('[SocketService] Connecting to Socket.IO backend...');
+      callLogger.info('SOCKET', 'Connecting to Socket.IO backend...', ctx);
       this.socket = io('https://api.tooka.app', {
         auth: {
           token,
@@ -166,34 +193,49 @@ class SocketService {
       });
 
       this.socket.on('connect', () => {
-        console.log('[SocketService] Socket connected successfully. ID:', this.socket?.id);
+        const connDuration = Date.now() - startTime;
+        const freshCtx = getLogContext();
+        callLogger.info('SOCKET', `Socket connected successfully. ID: ${this.socket?.id}, Duration from start: ${connDuration}ms`, freshCtx);
         this.rebindListeners();
       });
 
       this.socket.onAny((event, ...args) => {
-        console.log('[Socket Received Event]:', event, JSON.stringify(args, null, 2));
+        const freshCtx = getLogContext();
+        callLogger.info('SOCKET', `Received Socket Event: ${event}`, freshCtx, args);
       });
 
       this.socket.on('disconnect', (reason) => {
-        console.log(`[SocketService] Socket disconnected: ${reason}`);
+        const freshCtx = getLogContext();
+        callLogger.warn('SOCKET', `Socket disconnected: ${reason}`, freshCtx);
       });
 
       this.socket.on('connect_error', (error) => {
-        console.error('[SocketService] Socket connection error:', error);
+        const freshCtx = getLogContext();
+        callLogger.error('SOCKET', `Socket connection error`, freshCtx, error);
       });
 
+      const duration = Date.now() - startTime;
+      callLogger.info('SOCKET', `EXIT: connect - SUCCESS. Duration: ${duration}ms`, ctx);
     } catch (error) {
-      console.error('[SocketService] Initialization error:', error);
+      const duration = Date.now() - startTime;
+      callLogger.error('SOCKET', `EXIT: connect - FAILURE. Duration: ${duration}ms`, ctx, error);
+      throw error;
     }
   }
 
   disconnect() {
-    console.log('[SocketService] Disconnecting socket...');
+    const startTime = Date.now();
+    const { callLogger } = require('./callLogger');
+    const ctx = getLogContext();
+    callLogger.info('SOCKET', 'ENTER: disconnect', ctx);
+
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
     this.listeners = {};
+    const duration = Date.now() - startTime;
+    callLogger.info('SOCKET', `EXIT: disconnect - SUCCESS. Duration: ${duration}ms`, ctx);
   }
 
   isConnected(): boolean {
@@ -223,16 +265,28 @@ class SocketService {
 
   // Updated to accept optional acknowledgment callback (ack)
   emit(event: string, data?: any, ack?: (response: any) => void) {
+    const startTime = Date.now();
+    const { callLogger } = require('./callLogger');
+    const ctx = getLogContext();
+    callLogger.info('SOCKET', `ENTER Emit: ${event}`, ctx, data);
+
     if (!this.socket || !this.socket.connected) {
-      console.warn(`[SocketService] Emit failed for event: ${event}. Socket not connected.`);
+      const duration = Date.now() - startTime;
+      callLogger.warn('SOCKET', `Emit FAILED for event: ${event}. Socket not connected. Duration: ${duration}ms`, ctx);
       return;
     }
-    console.log('[SocketService] Emitting:', event, JSON.stringify(data, null, 2));
     
     if (ack) {
-      this.socket.emit(event, data, ack);
+      const wrappedAck = (res: any) => {
+        const duration = Date.now() - startTime;
+        callLogger.info('SOCKET', `ACK Received for event: ${event}. Duration: ${duration}ms`, ctx, res);
+        ack(res);
+      };
+      this.socket.emit(event, data, wrappedAck);
     } else {
       this.socket.emit(event, data);
+      const duration = Date.now() - startTime;
+      callLogger.info('SOCKET', `EXIT Emit: ${event} (No ACK expected). Duration: ${duration}ms`, ctx);
     }
   }
 

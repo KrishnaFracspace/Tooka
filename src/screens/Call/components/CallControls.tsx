@@ -36,6 +36,8 @@ export const CallControls: React.FC<CallControlsProps> = React.memo(({
   }
 
   if (state === CallState.CONNECTED || state === CallState.RECONNECTING) {
+    const isReconnecting = state === CallState.RECONNECTING;
+
     return (
       <View style={styles.containerRow}>
         <ControlButton
@@ -43,6 +45,7 @@ export const CallControls: React.FC<CallControlsProps> = React.memo(({
           color={isMuted ? '#000' : '#FFF'}
           backgroundColor={isMuted ? '#FFF' : 'rgba(255, 255, 255, 0.2)'}
           onPress={onMuteToggle}
+          disabled={isReconnecting}
         />
         
         <ControlButton
@@ -59,6 +62,7 @@ export const CallControls: React.FC<CallControlsProps> = React.memo(({
           color={isSpeaker ? '#000' : '#FFF'}
           backgroundColor={isSpeaker ? '#FFF' : 'rgba(255, 255, 255, 0.2)'}
           onPress={onSpeakerToggle}
+          disabled={isReconnecting}
         />
       </View>
     );
@@ -73,6 +77,7 @@ interface ControlButtonProps {
   backgroundColor: string;
   size?: number;
   iconSize?: number;
+  disabled?: boolean;
   onPress: () => void;
 }
 
@@ -82,11 +87,13 @@ const ControlButton: React.FC<ControlButtonProps> = ({
   backgroundColor,
   size = 60,
   iconSize = 28,
+  disabled = false,
   onPress,
 }) => {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={[
         styles.button,
         {
@@ -94,6 +101,7 @@ const ControlButton: React.FC<ControlButtonProps> = ({
           height: size,
           borderRadius: size / 2,
           backgroundColor,
+          opacity: disabled ? 0.4 : 1,
         },
       ]}
     >
