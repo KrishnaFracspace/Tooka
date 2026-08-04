@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { CallState, CallSession } from '../types/call';
+
+const AUDIO_ROUTE = {
+  HEADSET: 0,
+  EARPIECE: 1,
+  HEADPHONES: 2,
+  SPEAKER: 3,
+  LOUDSPEAKER: 4,
+  BLUETOOTH: 5,
+} as const;
 import { socketService } from '../services/call/socketService';
 import { callService } from '../services/call/callService';
 import { agoraService } from '../services/call/agoraService';
@@ -98,6 +107,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const endCallRef = useRef<(() => Promise<void>) | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const previousAudioRouteRef = useRef<number | null>(null);
+  const isFocusLostRef = useRef<boolean>(false);
+  const isCleaningUpRef = useRef<boolean>(false);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -108,7 +120,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Deterministic state machine transition
   const setCallState = useCallback((nextState: CallState) => {
     const currentState = callStateRef.current;
-    
+
     // Self-transitions are ignored safely
     if (currentState === nextState) return;
 
@@ -116,7 +128,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (allowed.includes(nextState)) {
       const startTime = Date.now();
       callLogger.setCallState(nextState);
-      
+
       const ctx = {
         sessionId: sessionRef.current?.sessionId || 'NO_SESSION',
         callState: nextState,
@@ -127,7 +139,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       callLogger.info('STATE', `Transition: ${currentState} -> ${nextState}`, ctx);
       callStateRef.current = nextState; // Synchronously update ref to prevent stale state in fast transitions
       setCallStateInternal(nextState);
-      
+
       const duration = Date.now() - startTime;
       callLogger.info('STATE', `Transition completed. Duration: ${duration}ms`, ctx);
     } else {
@@ -145,35 +157,19 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize Agora Engine on startup
   useEffect(() => {
     const initAgora = async () => {
-        try {
-            await agoraService.initialize(AGORA_CONFIG.appId);
+      try {
+        callService.clearSessions();
+        await agoraService.initialize(AGORA_CONFIG.appId);
 
-            console.log("[CallContext] Agora initialized");
-        } catch (e) {
-            console.error(e);
-        }
+        console.log("[CallContext] Agora initialized");
+      } catch (e) {
+        console.error(e);
+      }
     };
 
     initAgora();
 
-    // AppState Listener to track background/foreground transitions
-    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      const current = appStateRef.current;
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
-        if (current === 'active') {
-          console.log('[APPSTATE]\nBackground');
-          appStateRef.current = nextAppState;
-        }
-      } else if (nextAppState === 'active') {
-        if (current === 'background' || current === 'inactive') {
-          console.log('[APPSTATE]\nForeground');
-          appStateRef.current = 'active';
-        }
-      }
-    });
-
     return () => {
-      subscription.remove();
       agoraService.release().catch(console.error);
     };
   }, []);
@@ -204,8 +200,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [callState]);
 
   const cleanupAndResetCall = useCallback(async (reason: string = 'unknown') => {
-    console.log(`[CallContext] Cleaning up call state. Reason: ${reason}`);
-    
+    if (isCleaningUpRef.current) return;
+    isCleaningUpRef.current = true;
+
+    console.log('[CALL] Cleaning up call');
+
     const sessionToSummarize = sessionRef.current;
     const durationToSummarize = durationRef.current;
 
@@ -223,7 +222,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
-    
+
+    previousAudioRouteRef.current = null;
+    isFocusLostRef.current = false;
+
     try {
       printCallSummary(sessionToSummarize, durationToSummarize, reason);
     } catch (e) {
@@ -234,10 +236,45 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsMuted(false);
     setIsSpeaker(false);
     setDuration(0);
+    setErrorMessage(null);
     setCallStateInternal(CallState.IDLE); // Force IDLE as reset
+
+    console.log('[CALL] Cleanup completed');
   }, []);
 
-  // Handle Agora Callbacks
+  // AppState Listener to track background/foreground transitions & handle stale state recovery
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      const current = appStateRef.current;
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        if (current === 'active') {
+          console.log('[APPSTATE]\nBackground');
+          appStateRef.current = nextAppState;
+        }
+      } else if (nextAppState === 'active') {
+        if (current === 'background' || current === 'inactive') {
+          console.log('[APPSTATE]\nForeground');
+          appStateRef.current = 'active';
+
+          const state = callStateRef.current;
+          const isCallActiveState =
+            state === CallState.CONNECTED ||
+            state === CallState.CONNECTING ||
+            state === CallState.RECONNECTING ||
+            state === CallState.RINGING;
+
+          if (!sessionRef.current && isCallActiveState) {
+            console.log('[CALL] Stale call state detected on foreground return');
+            cleanupAndResetCall('stale_foreground_session');
+          }
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [cleanupAndResetCall]);
   useEffect(() => {
     const handleConnectionLostOrReconnecting = () => {
       if (callStateRef.current === CallState.CONNECTED || callStateRef.current === CallState.RECONNECTING) {
@@ -274,16 +311,28 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handlers = {
       // onJoinChannelSuccess is handled directly via Promise in callService.joinPendingSession()
       onLeaveChannel: () => {
-        setCallState(CallState.ENDED);
-        setTimeout(() => cleanupAndResetCall('agora_leave_channel'), 2000);
+        cleanupAndResetCall('agora_leave_channel');
       },
       onUserJoined: (connection: any, remoteUid: number) => {
+        if (isCleaningUpRef.current || !sessionRef.current) {
+          console.log('[CALL] Ignoring callback for cancelled call');
+          return;
+        }
         if (callStateRef.current === CallState.CONNECTING || callStateRef.current === CallState.RINGING) {
-           setCallState(CallState.CONNECTED);
+          setCallState(CallState.CONNECTED);
         }
       },
       onUserOffline: (connection: any, remoteUid: number, reason: number) => {
-        setCallState(CallState.ENDED);
+        const currentState = callStateRef.current;
+        if (currentState !== CallState.CONNECTED && currentState !== CallState.RECONNECTING) {
+          return;
+        }
+        if (!sessionRef.current || isCleaningUpRef.current) {
+          return;
+        }
+
+        console.log('[CALL] Remote participant left');
+        setErrorMessage('Other participant left.');
         cleanupAndResetCall('remote_user_offline');
       },
       onConnectionStateChanged: (connection: any, state: number, reason: number) => {
@@ -304,11 +353,36 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleReconnected();
       },
       onAudioRoutingChanged: (routing: number) => {
-        setIsSpeaker(routing === 4 || routing === 5);
+        const prev = previousAudioRouteRef.current;
+        previousAudioRouteRef.current = routing;
+
+        if (prev !== null && prev !== routing) {
+          const isBluetooth = (r: number) => r === AUDIO_ROUTE.BLUETOOTH;
+          const isHeadset = (r: number) => r === AUDIO_ROUTE.HEADSET || r === AUDIO_ROUTE.HEADPHONES;
+
+          if (isBluetooth(routing) && !isBluetooth(prev)) {
+            console.log('Bluetooth Connected');
+          } else if (isBluetooth(prev) && !isBluetooth(routing)) {
+            console.log('Bluetooth Disconnected');
+          }
+
+          if (isHeadset(routing) && !isHeadset(prev)) {
+            console.log('Headset Plugged');
+          } else if (isHeadset(prev) && !isHeadset(routing)) {
+            console.log('Headset Unplugged');
+          }
+        }
       },
       onLocalAudioStateChanged: (connection: any, state: number, error: number) => {
-        if (state === 0) setIsMuted(true);
-        else setIsMuted(false);
+        if (error === 3 || error === 8) {
+          if (!isFocusLostRef.current) {
+            isFocusLostRef.current = true;
+            console.log('Audio Focus Lost');
+          }
+        } else if (isFocusLostRef.current && (state === 1 || state === 2)) {
+          isFocusLostRef.current = false;
+          console.log('Audio Focus Restored');
+        }
       },
       onError: (err: number, msg: string) => {
         console.error(`[CallContext] Agora error code: ${err}, msg: ${msg}`);
@@ -316,7 +390,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (err === 109) friendlyMsg = 'Token expired. Please rejoin.';
         if (err === 110) friendlyMsg = 'Invalid token.';
         if (err === 17) friendlyMsg = 'Already joined channel.';
-        
+
         // Log it, but don't force a failure state for 17 since we are already joined
         if (err !== 17) {
           setErrorMessage(friendlyMsg);
@@ -334,7 +408,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [setCallState, cleanupAndResetCall]);
 
-    // Handle Socket Events
+  // Handle Socket Events
   useEffect(() => {
     socketService.connect();
 
@@ -346,6 +420,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     const handleRinging = (payload: any) => {
+      setErrorMessage(null);
       if (payload?.direction === 'inbound') {
         callManager.handleIncomingCall(payload);
       } else {
@@ -358,7 +433,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearTimeout(outgoingTimeoutRef.current);
         outgoingTimeoutRef.current = null;
       }
-      
+
       // Bug #4: Ignore duplicate call_accept socket event if connecting/active session already exists
       if (
         callStateRef.current === CallState.CONNECTING ||
@@ -380,11 +455,21 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         await callService.joinPendingSession();
+
+        if (isCleaningUpRef.current || !sessionRef.current) {
+          console.log('[CALL] Ignoring callback for cancelled call');
+          return;
+        }
+
         callService.promoteConnectingToActive();
         setCallState(CallState.CONNECTED);
         setSession(callService.getActiveSession());
         setErrorMessage(null);
       } catch (error) {
+        if (isCleaningUpRef.current || !sessionRef.current) {
+          console.log('[CALL] Ignoring callback for cancelled call');
+          return;
+        }
         console.error('[CallContext] Failed to join active call via Agora', error);
         setCallState(CallState.FAILED);
         cleanupAndResetCall('agora_join_failed');
@@ -447,6 +532,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log(`[CallContext] initiateCall ignored. Current state is ${callStateRef.current}`);
       return;
     }
+    isCleaningUpRef.current = false;
+    setErrorMessage(null);
     try {
       setCallState(CallState.OUTGOING);
       const newSession = await callService.initiateCall(request);
@@ -470,6 +557,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const acceptIncomingCall = useCallback(async () => {
     if (!sessionRef.current || callStateRef.current !== CallState.INCOMING) return;
+    isCleaningUpRef.current = false;
+    setErrorMessage(null);
     try {
       setCallState(CallState.CONNECTING);
       await callService.answerCall(sessionRef.current);
@@ -511,6 +600,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await cancelCall();
         return;
       }
+      if (callStateRef.current === CallState.CONNECTING) {
+        console.log('[CALL] User cancelled during connecting');
+      }
       setCallState(CallState.ENDED);
       await callService.endCall(sessionRef.current, durationRef.current || 0);
     } catch (error) {
@@ -524,9 +616,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleMute = useCallback(() => {
     console.log(
-    "[UI] Toggle mute",
-    isMuted
-);
+      "[UI] Toggle mute",
+      isMuted
+    );
     const nextMute = !isMuted;
     callService.toggleMute(nextMute).catch(console.error);
     setIsMuted(nextMute);
