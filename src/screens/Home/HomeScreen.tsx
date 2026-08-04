@@ -47,6 +47,7 @@ import { useProfile } from '../../context/ProfileContext';
 import { Analytics, AnalyticsEvents, AnalyticsScreens } from '../../services/firebase/analytics';
 import { Crashlytics } from '../../services/firebase/crashlytics';
 import { useAuth } from '../../context/AuthContext';
+import { restart } from 'react-native-stallion';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -437,6 +438,15 @@ const HomeScreen: React.FC = () => {
           {profile?.displayName ? `Hello, ${profile?.displayName}` : `Hello User`}
         </Text>
         <Text style={styles.title}>Ready to relax and recharge?</Text> */}
+        {/* <Text>Welcome to Tooka OTA 🚀</Text> */}
+
+        {/* <Button
+          title="Restart OTA"
+          onPress={() => {
+            console.log('Restarting OTA...');
+            restart();
+          }}
+        /> */}
 
         <SearchBar
           value={searchQuery}

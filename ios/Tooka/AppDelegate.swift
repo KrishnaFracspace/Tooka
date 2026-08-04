@@ -3,6 +3,7 @@ import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import FirebaseCore
+import react_native_stallion
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -40,11 +41,18 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
     self.bundleURL()
   }
 
+//   override func bundleURL() -> URL? {
+// #if DEBUG
+//     RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+// #else
+//     Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+// #endif
+//   }
   override func bundleURL() -> URL? {
-#if DEBUG
-    RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
-#else
-    Bundle.main.url(forResource: "main", withExtension: "jsbundle")
-#endif
+  #if DEBUG
+      return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+  #else
+      return StallionModule.getBundleURL()
+  #endif
   }
 }
