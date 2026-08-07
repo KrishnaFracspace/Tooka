@@ -15,6 +15,7 @@ type Props = {
 function HeroHeader({ service, onBack }: Props): React.ReactElement {
   const { width } = useWindowDimensions();
   const curveHeight = Math.max(94, width * 0.18);
+  console.log("Service: ", service);
 
   return (
     <View style={[styles.heroWrap, { marginBottom: 0 }]}>
@@ -48,10 +49,10 @@ function HeroHeader({ service, onBack }: Props): React.ReactElement {
         <View>
           <Text style={styles.serviceTitle}>{service.name}</Text>
           <View style={styles.durationRow}>
-            <View style={styles.clockCircle}>
-              <Ionicons name="checkmark" size={12} color={colors.muted} />
-            </View>
-            <Text style={styles.durationText}>{service.durationMinutes} mins</Text>
+            {/* <View style={styles.clockCircle}> */}
+              <Ionicons name="location-outline" size={15} color={colors.muted} />
+            {/* </View> */}
+            <Text style={styles.durationText}>{service.location}</Text>
           </View>
         </View>
 

@@ -1,3 +1,5 @@
+import type { SpaService } from '../types/spaDetails';
+
 /**
  * Safe numeric helpers for values that may arrive from the API as
  * numbers, numeric strings (e.g. "5.0"), null, undefined, or garbage.
@@ -24,6 +26,8 @@ export const toSafeNumber = (value: unknown, fallback = 0): number => {
   return fallback;
 };
 
+export const DEFAULT_PRICE = '₹1,499';
+
 /**
  * Format a rating-like value for display, guaranteed to be a string.
  * Safe against undefined / null / numeric strings / invalid values.
@@ -33,3 +37,27 @@ export const formatRating = (
   fallback = 0,
   fractionDigits = 1,
 ): string => toSafeNumber(value, fallback).toFixed(fractionDigits);
+
+/**
+ * Calculate the lowest service price from an array of services.
+ * Safe against undefined / null / non-numeric / missing prices.
+ */
+export const getLowestServicePrice = (
+  services?: SpaService[] | null,
+  fallback = DEFAULT_PRICE,
+): string => {
+  if (!Array.isArray(services) || services.length === 0) {
+    return fallback;
+  }
+
+  const prices = services
+    .map((service) => (service && service.base_price != null ? Number(service.base_price) : NaN))
+    .filter((price) => Number.isFinite(price) && price > 0);
+
+  if (prices.length === 0) {
+    return fallback;
+  }
+
+  const minPrice = Math.min(...prices);
+  return `₹${minPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+};

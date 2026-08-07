@@ -25,19 +25,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import SpaDetailsSkeleton from '../../components/loaders/SpaDetailsSkeleton';
-import StateMessage from '../../components/common/StateMessage';
-import { useAuth } from '../../context/AuthContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import type { SpaDetails, SpaService, SpaReview } from '../../types/spaDetails';
-import { formatRating, toSafeNumber } from '../../utils/number';
-import { offer as offerData } from '../../data/homeData';
+import { formatRating, getLowestServicePrice, toSafeNumber } from '../../utils/number';
 
 const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/1000x600';
 const DEFAULT_LOCATION = 'Hyderabad';
 const DEFAULT_RATING = 4.5;
 const DEFAULT_DESCRIPTION = 'Experience luxury wellness and rejuvenation.';
 const DEFAULT_NAME = 'Premium Wellness Spa';
-const DEFAULT_PRICE = '₹1,499';
 const HORIZONTAL_SCREEN_PADDING = 15;
 
 type BadgeChipProps = {
@@ -57,7 +53,6 @@ type ServiceCardProps = {
   subtitle: string;
   price: string;
   category: string;
-  onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -84,8 +79,6 @@ type SpaDetailsContentProps = {
   showBackButton?: boolean;
   showBookBar?: boolean;
 };
-
-type SpaDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type SpaServiceItem = SpaService;
 type SpaReviewItem = SpaReview;
@@ -123,26 +116,20 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   subtitle,
   price,
   category,
-  onPress,
   style,
 }) => (
-  <Pressable
-    style={({ pressed }) => [styles.serviceCard, pressed && styles.pressedCard, style]}
-    onPress={onPress}
-    accessibilityRole="button"
-    accessibilityLabel={`Book ${title}`}
-  >
+  <View style={[styles.serviceCard, style]}>
     <View style={styles.serviceTitleRow}>
       <Text style={styles.serviceTitle} numberOfLines={2}>
         {title}
       </Text>
       <Text style={styles.servicePrice}>{price}</Text>
     </View>
-    {subtitle != "" &&
-    <Text style={styles.serviceSubtitle} numberOfLines={3}>
-      {subtitle}
-    </Text>
-    }
+    {subtitle !== '' && (
+      <Text style={styles.serviceSubtitle} numberOfLines={3}>
+        {subtitle}
+      </Text>
+    )}
     <View style={styles.serviceMetaRow}>
       <View style={styles.metaPill}>
         <Ionicons name="time-outline" size={14} color="#9A9A9A" />
@@ -155,7 +142,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         </Text>
       </View>
     </View>
-  </Pressable>
+  </View>
 );
 
 const ReviewCard: React.FC<ReviewCardProps> = ({ author, when, rating, text, width, style }) => {
@@ -251,18 +238,6 @@ const formatServicePrice = (price: string | null, currency: string | null) => {
   return `${currency} ${formattedPrice}`;
 };
 
-const getLowestServicePrice = (services: SpaServiceItem[]) => {
-  const prices = services
-    .map((service) => Number(service.base_price))
-    .filter((price) => Number.isFinite(price) && price > 0);
-
-  if (prices.length === 0) {
-    return DEFAULT_PRICE;
-  }
-
-  return `₹${Math.min(...prices).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-};
-
 const getTimingSummary = (spa: SpaDetails | null) => {
   const firstTiming = spa?.timings?.find((timing) => timing.open && timing.close);
 
@@ -273,48 +248,54 @@ const getTimingSummary = (spa: SpaDetails | null) => {
   return `${firstTiming.open} - ${firstTiming.close}`;
 };
 
-const SpaDetailsContent = memo(function SpaDetailsContent({
+const SpaDetailsContent = memo(function SpaDetailsContentInner({
   spa,
   loading,
-  error,
-  onRetry,
   spaId,
   serviceId,
   serviceName,
   onBookSpa,
   onBack,
-  openEnquiry = false,
   showBackButton = true,
   showBookBar = true,
 }: SpaDetailsContentProps): React.ReactElement {
-  const navigation = useNavigation<SpaDetailsNavigationProp>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const contentWidth = Math.min(width, 1200);
   const heroCardWidth = Math.max(280, contentWidth - HORIZONTAL_SCREEN_PADDING * 2);
   const reviewCardWidth = isTablet ? 300 : Math.max(260, width * 0.64);
-  const offer = offerData;
-  const { user, isAuthenticated } = useAuth();
-  // console.log('Auth: ', isAuthenticated, user);
 
   const [selectedHeroIndex, setSelectedHeroIndex] = useState(0);
-  const [selectedService, setSelectedService] = useState<{ id?: string; name?: string }>({
+  const [failedImageUrls, setFailedImageUrls] = useState<Record<string, boolean>>({});
+
+  const [_selectedService, setSelectedService] = useState<{ id?: string; name?: string }>({
     id: serviceId,
     name: serviceName,
   });
-  // console.log("Spa details: ", spa?.is_bookable);
 
   useEffect(() => {
     setSelectedService({ id: serviceId, name: serviceName });
   }, [serviceId, serviceName]);
 
-  const heroImage = useMemo(() => ({ uri: spa?.cover_photo_url ?? PLACEHOLDER_IMAGE }), [spa?.cover_photo_url]);
+  const handleImageError = useCallback((url: string) => {
+    setFailedImageUrls((prev) => ({ ...prev, [url]: true }));
+  }, []);
 
   const spaName = spa?.name ?? DEFAULT_NAME;
-  const spaRating = toSafeNumber(spa?.rating_google, DEFAULT_RATING);
-  const reviewCount = toSafeNumber(spa?.review_count_google, 0);
-  const reviewSummary = `${reviewCount.toLocaleString('en-IN')} reviews`;
-  const spaLocation = spa?.locality_name ?? spa?.city_name ?? DEFAULT_LOCATION;
+  const rawRating = spa?.rating_google;
+  const rawReviewCount = spa?.review_count_google;
+  const formattedRating = formatRating(rawRating, DEFAULT_RATING);
+  const reviewCountNum = toSafeNumber(rawReviewCount, 0);
+  const reviewCountText = reviewCountNum > 0 ? reviewCountNum.toLocaleString('en-IN') : null;
+
+  const spaLocation = useMemo(() => {
+    if (spa?.locality_name && spa?.city_name) {
+      return `${spa.locality_name}, ${spa.city_name}`;
+    }
+    return spa?.locality_name ?? spa?.city_name ?? DEFAULT_LOCATION;
+  }, [spa?.locality_name, spa?.city_name]);
+
   const spaAddress = useMemo(() => {
     const parts: string[] = [];
     if (spa?.address_line1) parts.push(spa.address_line1);
@@ -323,6 +304,7 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
     if (spa?.city_name) parts.push(spa.city_name);
     return parts.length ? parts.join(', ') : DEFAULT_LOCATION;
   }, [spa?.address_line1, spa?.address_line2, spa?.locality_name, spa?.city_name]);
+
   const spaDescription = spa?.tagline ?? spa?.description ?? spa?.editorial_summary ?? DEFAULT_DESCRIPTION;
   const amenityChips = useMemo(() => mapAmenityChips(spa), [spa]);
 
@@ -331,44 +313,69 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
   const featuredServices = useMemo(() => services.slice(0, 3), [services]);
   const startingPrice = useMemo(() => getLowestServicePrice(services), [services]);
   const openingSummary = useMemo(() => getTimingSummary(spa), [spa]);
-  const heroImages = useMemo(() => {
-    const urls = [
-      spa?.cover_photo_url,
-      ...(spa?.gallery?.map((item) => item.image_url) ?? []),
-    ].filter((url): url is string => Boolean(url));
 
-    const uniqueUrls = Array.from(new Set(urls));
-    return uniqueUrls.length ? uniqueUrls.map((uri) => ({ uri })) : [heroImage];
-  }, [heroImage, spa?.cover_photo_url, spa?.gallery]);
+  const heroMediaItems = useMemo(() => {
+    const items: { id: string; url: string }[] = [];
+    const seenUrls = new Set<string>();
 
-  const handlePressService = useCallback(
-    (service: SpaServiceItem) => {
-      setSelectedService({ id: service.id, name: service.name });
-
-      if (onBookSpa) {
-        onBookSpa(spaId, service.id, service.name);
-        return;
-      }
-
-      if (isAuthenticated) {
-        return;
-      }
-
-      navigation.navigate('Login', {
-        spaId,
-        serviceId: service.id,
-        serviceName: service.name,
+    if (Array.isArray(spa?.media) && spa.media.length > 0) {
+      const sortedMedia = [...spa.media].sort((a, b) => {
+        const orderA = typeof a.display_order === 'number' ? a.display_order : Number.MAX_SAFE_INTEGER;
+        const orderB = typeof b.display_order === 'number' ? b.display_order : Number.MAX_SAFE_INTEGER;
+        return orderA - orderB;
       });
-    },
-    [isAuthenticated, navigation, onBookSpa, spaId],
-  );
 
-  // const handleGetDirections = useCallback(() => {
-  //   Linking.openURL(spa.google_maps_url)
-  //   if (__DEV__) {
-  //     console.log('Get directions for', spa?.lat, spa?.lng);
-  //   }
-  // }, [spa?.lat, spa?.lng]);
+      sortedMedia.forEach((m, idx) => {
+        if (!m) return;
+        const candidateUrl = [m.url, m.url_medium, m.url_thumbnail].find(
+          (u): u is string => typeof u === 'string' && u.trim().length > 0
+        );
+
+        if (candidateUrl) {
+          const trimmed = candidateUrl.trim();
+          if (!seenUrls.has(trimmed) && !failedImageUrls[trimmed]) {
+            seenUrls.add(trimmed);
+            items.push({
+              id: m.id ? String(m.id) : `media-${idx}`,
+              url: trimmed,
+            });
+          }
+        }
+      });
+    }
+
+    if (items.length > 0) {
+      return items;
+    }
+
+    if (typeof spa?.cover_photo_url === 'string' && spa.cover_photo_url.trim().length > 0) {
+      const trimmed = spa.cover_photo_url.trim();
+      if (!failedImageUrls[trimmed]) {
+        return [{ id: 'cover-photo', url: trimmed }];
+      }
+    }
+
+    if (Array.isArray(spa?.gallery) && spa.gallery.length > 0) {
+      spa.gallery.forEach((g, idx) => {
+        if (typeof g?.image_url === 'string' && g.image_url.trim().length > 0) {
+          const trimmed = g.image_url.trim();
+          if (!seenUrls.has(trimmed) && !failedImageUrls[trimmed]) {
+            seenUrls.add(trimmed);
+            items.push({
+              id: g.id ? String(g.id) : `gallery-${idx}`,
+              url: trimmed,
+            });
+          }
+        }
+      });
+    }
+
+    if (items.length > 0) {
+      return items;
+    }
+
+    return [{ id: 'placeholder-image', url: PLACEHOLDER_IMAGE }];
+  }, [spa?.media, spa?.cover_photo_url, spa?.gallery, failedImageUrls]);
 
   const handleGetDirections = useCallback(async () => {
     const url = spa?.google_maps_url;
@@ -386,31 +393,30 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
       } else {
         console.warn('Cannot open URL:', url);
       }
-    } catch (error) {
-      console.error('Failed to open Google Maps URL', error);
+    } catch (err) {
+      console.error('Failed to open Google Maps URL', err);
     }
   }, [spa?.google_maps_url]);
 
   const handleHeroScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextIndex = Math.round(event.nativeEvent.contentOffset.x / heroCardWidth);
-      setSelectedHeroIndex(Math.max(0, Math.min(nextIndex, heroImages.length - 1)));
+      const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (heroCardWidth + 12));
+      setSelectedHeroIndex(Math.max(0, Math.min(nextIndex, heroMediaItems.length - 1)));
     },
-    [heroCardWidth, heroImages.length],
+    [heroCardWidth, heroMediaItems.length],
   );
 
   const handlePressBookNow = useCallback(() => {
-    if (services[0]) {
-      handlePressService(services[0]);
+    if (onBookSpa) {
+      onBookSpa(spaId);
     }
-  }, [handlePressService, services]);
+  }, [onBookSpa, spaId]);
 
   const renderServiceItem = useCallback(
     ({ item, index }: ListRenderItemInfo<SpaServiceItem>) => {
-      console.log("Services: ",item);
       const durationText = item.duration_minutes != null ? `${item.duration_minutes} min` : 'N/A';
       const priceText = formatServicePrice(item.base_price, item.currency);
-      const subtitleText = item.short_description ?? item.description ?? "";
+      const subtitleText = item.short_description ?? item.description ?? '';
       const categoryText = item.category ?? 'Wellness';
 
       return (
@@ -422,11 +428,10 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
           price={priceText}
           category={categoryText}
           style={index > 0 ? styles.serviceCardSpacing : undefined}
-          onPress={() => handlePressService(item)}
         />
       );
     },
-    [handlePressService],
+    [],
   );
 
   const renderReviewItem = useCallback(
@@ -448,19 +453,6 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
     return <SpaDetailsSkeleton />;
   }
 
-  // if (error && spa === null) {
-  //   return (
-  //     <View style={styles.contentFallback}>
-  //       <StateMessage
-  //         title="Something went wrong"
-  //         subtitle={error}
-  //         actionLabel="Try Again"
-  //         onAction={onRetry ?? (() => undefined)}
-  //       />
-  //     </View>
-  //   );
-  // }
-
   if (!spa) {
     return <SpaDetailsSkeleton />;
   }
@@ -469,9 +461,9 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
     <View style={styles.contentRoot}>
       <View style={styles.heroShell}>
         <FlatList
-          data={heroImages}
+          data={heroMediaItems}
           horizontal
-          keyExtractor={(item, index) => `${item.uri}-${index}`}
+          keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           snapToInterval={heroCardWidth + 12}
           decelerationRate="fast"
@@ -480,9 +472,10 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
           contentContainerStyle={styles.heroList}
           renderItem={({ item }) => (
             <Image
-              source={item}
+              source={{ uri: item.url }}
               style={[styles.heroImage, { width: heroCardWidth }]}
               resizeMode="cover"
+              onError={() => handleImageError(item.url)}
               accessibilityIgnoresInvertColors
             />
           )}
@@ -500,41 +493,44 @@ const SpaDetailsContent = memo(function SpaDetailsContent({
           </Pressable>
         )}
 
-        {/* <Pressable
-          style={styles.favoriteButton}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Save spa"
-        >
-          <Ionicons name="heart-outline" size={26} color="#FFFFFF" />
-        </Pressable> */}
-
-        {heroImages.length > 1 && (
+        {heroMediaItems.length > 1 && (
           <View style={styles.pagination}>
-            {heroImages.slice(0, 5).map((item, index) => (
+            {heroMediaItems.slice(0, 5).map((item, index) => (
               <View
-                key={`${item.uri}-dot-${index}`}
-                style={[styles.paginationDot, index === selectedHeroIndex && styles.paginationDotActive]}
+                key={`${item.id}-dot-${index}`}
+                style={[
+                  styles.paginationDot,
+                  index === Math.min(selectedHeroIndex, heroMediaItems.length - 1) && styles.paginationDotActive,
+                ]}
               />
             ))}
           </View>
         )}
       </View>
 
-      <View style={styles.headingRow}>
-        <View style={styles.headingTextColumn}>
-          <Text style={styles.spaName}>{spaName}</Text>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={17} color="#6C6258" />
-            <Text style={styles.locationText} numberOfLines={1}>
-              {spaLocation}
+      <View style={styles.headingColumn}>
+        {(rawRating != null || rawReviewCount != null) && (
+          <View
+            style={styles.ratingRow}
+            accessible
+            accessibilityLabel={`${formattedRating} rating${reviewCountText ? `, ${reviewCountText} reviews` : ''}`}
+          >
+            <Ionicons name="star" size={17} color="#E8C520" />
+            <Text style={styles.ratingText}>
+              {formattedRating}
+              {reviewCountText ? <Text style={styles.ratingCount}> ({reviewCountText})</Text> : null}
             </Text>
           </View>
-        </View>
-        <View style={styles.ratingRow} accessible accessibilityLabel={`${spaRating.toFixed(1)} rating, ${reviewSummary}`}>
-          <Ionicons name="star" size={17} color="#E8C520" />
-          <Text style={styles.ratingText}>
-            {spaRating.toFixed(1)} <Text style={styles.ratingCount}>({reviewCount.toLocaleString('en-IN')})</Text>
+        )}
+
+        <Text style={styles.spaName} numberOfLines={2} ellipsizeMode="tail">
+          {spaName}
+        </Text>
+
+        <View style={styles.locationRow}>
+          <Ionicons name="location-outline" size={17} color="#6C6258" />
+          <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
+            {spaLocation}
           </Text>
         </View>
       </View>
@@ -751,23 +747,17 @@ const styles = StyleSheet.create({
     width: 30,
     backgroundColor: '#FFAA26',
   },
-  headingRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+  headingColumn: {
     paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
     marginBottom: 26,
-    gap: 16,
-  },
-  headingTextColumn: {
-    flex: 1,
+    gap: 6,
   },
   spaName: {
     color: '#282725',
     fontSize: 22,
     fontWeight: '800',
     lineHeight: 28,
-    marginBottom: 10,
+    marginVertical: 2,
   },
   locationRow: {
     flexDirection: 'row',
@@ -784,7 +774,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingTop: 5,
   },
   ratingText: {
     color: '#8C8881',

@@ -119,6 +119,7 @@ export const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 16,
     color: colors.muted,
+    marginLeft: 4,
   },
   priceLabel: {
     fontFamily: fonts.regular,

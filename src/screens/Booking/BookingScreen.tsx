@@ -28,6 +28,8 @@ import { useAuth } from '../../context/AuthContext';
 import { usePaymentContext } from '../../context/PaymentContext';
 import { paymentLogger } from '../../payment/paymentLogger';
 import { buildBookingDateAndTime } from '../../utils/bookingDateTime';
+import { getLowestServicePrice } from '../../utils/number';
+import { useSpaDetails } from '../../hooks/useSpaDetails';
 import { useProfile } from '../../context/ProfileContext';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import type { BookingScheduleDate, BookingSlot } from '../../types/booking';
@@ -176,6 +178,12 @@ function BookingScreen(): React.ReactElement {
   );
 
   const spaId = route.params.spaId;
+  const { spa } = useSpaDetails(spaId);
+  const startingPrice = useMemo(
+    () => getLowestServicePrice(spa?.services),
+    [spa?.services],
+  );
+
   const servicePrice = parsePrice(route.params.servicePrice);
   const tokenPrice = parsePrice(bookingOption.price);
   const footerPrice = tokenPrice || servicePrice;
@@ -186,17 +194,19 @@ function BookingScreen(): React.ReactElement {
     () => ({
       name: route.params.serviceName ?? route.params.spaName ?? 'Spa booking',
       durationMinutes: route.params.serviceDurationMinutes ?? 60,
-      price: servicePrice,
+      price: startingPrice,
+      location: route.params.location ?? '',
       image: route.params.spaImage
         ? { uri: route.params.spaImage }
         : FALLBACK_IMAGE,
     }),
     [
+      route.params.location,
       route.params.serviceDurationMinutes,
       route.params.serviceName,
       route.params.spaImage,
       route.params.spaName,
-      servicePrice,
+      startingPrice,
     ],
   );
 
@@ -256,7 +266,7 @@ function BookingScreen(): React.ReactElement {
     Analytics.logEvent(AnalyticsEvents.BOOKING_STARTED, {
       [AnalyticsParams.SPA_ID]: spaId,
     });
-  }, []);
+  }, [spaId]);
 
   const loadAvailability = useCallback(
     async (date: string) => {

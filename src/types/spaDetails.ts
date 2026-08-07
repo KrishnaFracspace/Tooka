@@ -1,3 +1,17 @@
+export interface SpaMediaItem {
+  id: string;
+  image_type?: string | null;
+  url?: string | null;
+  url_thumbnail?: string | null;
+  url_medium?: string | null;
+  title?: string | null;
+  alt_text?: string | null;
+  display_order?: number;
+  width_px?: number | null;
+  height_px?: number | null;
+  is_cover?: boolean;
+}
+
 export interface SpaDetails {
   id: string;
   name: string;
@@ -7,6 +21,7 @@ export interface SpaDetails {
   description: string | null;
   editorial_summary: string | null;
   cover_photo_url: string | null;
+  media?: SpaMediaItem[] | null;
   city_id: string;
   locality_id: string;
   city_name: string;

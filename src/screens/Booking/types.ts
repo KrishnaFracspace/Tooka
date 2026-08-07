@@ -7,8 +7,9 @@ export type TimeSlotStatus = 'available' | 'booked' | 'blocked';
 export interface BookingService {
   name: string;
   durationMinutes: number;
-  price: number;
+  price: number | string;
   image: ImageSourcePropType;
+  location: string;
 }
 
 export interface BookingDate {
