@@ -33,6 +33,8 @@ import { WellnessArticleScreen } from '../screens/Wellness';
 import CallScreen from '../screens/Call/CallScreen';
 import IncomingCallScreen from '../screens/Call/IncomingCallScreen';
 
+import LocationSelectionScreen from '../screens/Home/LocationSelectionScreen';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // RootStackParamList — single source of navigation type truth.
 //
@@ -46,6 +48,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   BottomNavigation: NavigatorScreenParams<BottomTabParamList> | undefined;
   Home: undefined;
+  LocationSelection: undefined;
   Explore: undefined;
   SpaDetails: {
     spaId: string;
@@ -200,6 +203,12 @@ const AppNavigator = () => {
         <Stack.Screen name="Login" component={AuthenticationScreen} />
 
         <Stack.Screen name="Home" component={HomeScreen} />
+
+        <Stack.Screen
+          name="LocationSelection"
+          component={LocationSelectionScreen}
+          options={{ presentation: 'modal' }}
+        />
 
         <Stack.Screen name="SpaDetails" component={SpaDetailsScreen} />
 

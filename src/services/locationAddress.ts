@@ -140,3 +140,88 @@ export const resolveAddressForCoordinates = async (
     return {};
   }
 };
+
+export interface LocationSearchResult {
+  latitude: number;
+  longitude: number;
+  locality: string | null;
+  subLocality: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  formattedAddress: string;
+}
+
+export const searchLocationAddress = async (
+  query: string,
+): Promise<LocationSearchResult[]> => {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  try {
+    const response = await axios.get(
+      'https://maps.googleapis.com/maps/api/geocode/json',
+      {
+        params: {
+          address: normalizedQuery,
+          key: GOOGLE_GEOCODING_API_KEY,
+          language: 'en',
+        },
+        timeout: 8000,
+      },
+    );
+
+    const results = Array.isArray(response?.data?.results)
+      ? response.data.results
+      : [];
+
+    return results
+      .map((item: any) => {
+        const lat = item.geometry?.location?.lat;
+        const lng = item.geometry?.location?.lng;
+        if (lat == null || lng == null) {
+          return null;
+        }
+
+        const components = item.address_components;
+        const locality = findAddressComponent(components, [
+          'locality',
+          'sublocality',
+          'sublocality_level_1',
+        ]);
+        const subLocality = findAddressComponent(components, [
+          'sublocality',
+          'sublocality_level_1',
+          'neighborhood',
+        ]);
+        const city =
+          findAddressComponent(components, ['locality']) ??
+          findAddressComponent(components, [
+            'administrative_area_level_2',
+          ]);
+        const state = findAddressComponent(components, [
+          'administrative_area_level_1',
+        ]);
+        const country = findAddressComponent(components, ['country']);
+
+        return {
+          latitude: Number(lat),
+          longitude: Number(lng),
+          locality: locality ?? null,
+          subLocality: subLocality ?? null,
+          city: city ?? null,
+          state: state ?? null,
+          country: country ?? null,
+          formattedAddress: item.formatted_address ?? '',
+        };
+      })
+      .filter((res: LocationSearchResult | null): res is LocationSearchResult => res !== null);
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[locationAddress] search location failed', error);
+    }
+    return [];
+  }
+};

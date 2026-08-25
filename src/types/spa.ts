@@ -14,4 +14,7 @@ export interface Spa {
   is_bookable: boolean;
   lat: string;
   lng: string;
+  distance_m?: number | string | null;
+  min_booking_amount?: string | null;
+  minimum_booking_amount?: string | null;
 }

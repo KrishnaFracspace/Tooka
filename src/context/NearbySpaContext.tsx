@@ -13,6 +13,8 @@ import SpaApi from '../api/SpaApi';
 import { useLocation } from './LocationContext';
 import type { Spa } from '../types/spa';
 
+import { getSpaDistance } from '../utils/distance';
+
 const CACHE_KEY = 'TOOKA_NEARBY_SPAS_CACHE';
 const PLACEHOLDER_IMAGE =
   'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80';
@@ -27,6 +29,7 @@ export interface MappedSpa {
   longitude: number;
   isOpen: boolean | null;
   distance: string;
+  distanceMeters?: number | null;
   description: string;
   address: string;
   subtitle: string;
@@ -54,34 +57,6 @@ interface NearbySpaContextType {
 
 const NearbySpaContext = createContext<NearbySpaContextType | undefined>(undefined);
 
-// Helper for distance calculation
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): string {
-  const R = 6371e3; // meters
-  const phi1 = (lat1 * Math.PI) / 180;
-  const phi2 = (lat2 * Math.PI) / 180;
-  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) *
-      Math.cos(phi2) *
-      Math.sin(deltaLambda / 2) *
-      Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  const d = R * c;
-  if (d < 1000) {
-    return `${Math.round(d)} m`;
-  }
-  return `${(d / 1000).toFixed(1)} km`;
-}
-
 // Data mapper from API model to UI model
 export function mapApiSpaToMappedSpa(
   spa: Spa,
@@ -95,13 +70,8 @@ export function mapApiSpaToMappedSpa(
   const ratingVal = parseFloat(String(spa.rating_google)) || 4.5;
   const reviewsCount = parseInt(String(spa.review_count_google), 10) || 0;
 
-  // Derive distance
-  const distanceStr =
-    calculateDistance(userLat, userLng, lat, lng);
-
-    // console.log("Distancee: ", distanceStr);
-
-  // const dist = distanceStr > 999 ? `${Math.floor(distanceStr/1000)} Km away` : `${Math.floor(distanceStr)} m away`;
+  // Derive distance preferring backend distance_m
+  const { distanceStr, distanceMeters } = getSpaDistance(spa, userLat, userLng);
 
   // Parse open status
   let isOpenVal: boolean | null = null;
@@ -119,6 +89,7 @@ export function mapApiSpaToMappedSpa(
     longitude: lng,
     isOpen: isOpenVal,
     distance: distanceStr,
+    distanceMeters,
     description: spa.tagline ?? 'A premium relaxation experience offering therapies and massages.',
     address: spa.locality_name ?? spa.city_name ?? 'Location unavailable',
     subtitle: `${distanceStr} Away from you`,

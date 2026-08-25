@@ -19,12 +19,14 @@ export type StoredLocation = {
   city?: string | null;
   state?: string | null;
   country?: string | null;
+  isManualSelection?: boolean;
 };
 
 export type LocationContextValue = {
   location: StoredLocation | null;
   loading: boolean;
   refreshLocation: (forceRequestPermission?: boolean) => Promise<StoredLocation | null>;
+  setSelectedLocation: (location: StoredLocation) => Promise<void>;
   getSavedLocation: () => Promise<StoredLocation | null>;
   hasLocationPermission: () => Promise<boolean>;
 };

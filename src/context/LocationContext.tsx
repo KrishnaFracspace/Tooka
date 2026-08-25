@@ -11,6 +11,7 @@ import {
   getSavedLocation as readSavedLocation,
   hasLocationPermission as checkLocationPermission,
   refreshLocation as refreshDeviceLocation,
+  saveSelectedLocation,
 } from '../services/locationService';
 import type {
   LocationContextValue,
@@ -41,6 +42,17 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
+  const setSelectedLocation = useCallback(
+    async (nextLoc: StoredLocation) => {
+      const saved = await saveSelectedLocation({
+        ...nextLoc,
+        isManualSelection: true,
+      });
+      setLocation(saved);
+    },
+    [],
+  );
+
   const hasLocationPermission = useCallback(
     () => checkLocationPermission(),
     [],
@@ -51,6 +63,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const initializeLocation = async () => {
       try {
+        const saved = await readSavedLocation();
+        if (saved?.isManualSelection) {
+          if (isMounted) {
+            setLocation(saved);
+          }
+          return;
+        }
+
         const nextLocation = await refreshDeviceLocation(false);
         if (
           __DEV__ &&
@@ -80,6 +100,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       if (nextAppState === 'active') {
         try {
+          const saved = await readSavedLocation();
+          if (saved?.isManualSelection) {
+            if (isMounted) {
+              setLocation(saved);
+            }
+            return;
+          }
+
           const refreshed = await refreshDeviceLocation(false);
           if (isMounted) {
             setLocation(refreshed);
@@ -103,6 +131,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
       location,
       loading,
       refreshLocation,
+      setSelectedLocation,
       getSavedLocation,
       hasLocationPermission,
     }),
@@ -110,6 +139,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({
       location,
       loading,
       refreshLocation,
+      setSelectedLocation,
       getSavedLocation,
       hasLocationPermission,
     ],

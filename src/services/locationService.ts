@@ -302,6 +302,7 @@ export async function getSavedLocation(): Promise<StoredLocation | null> {
       city: parsed.city ?? null,
       state: parsed.state ?? null,
       country: parsed.country ?? null,
+      isManualSelection: Boolean(parsed.isManualSelection),
     };
   } catch (error) {
     if (__DEV__) {
@@ -309,6 +310,17 @@ export async function getSavedLocation(): Promise<StoredLocation | null> {
     }
     return null;
   }
+}
+
+export async function saveSelectedLocation(
+  location: StoredLocation,
+): Promise<StoredLocation> {
+  const nextLocation: StoredLocation = {
+    ...location,
+    isManualSelection: location.isManualSelection ?? true,
+    timestamp: location.timestamp || Date.now(),
+  };
+  return persistLocation(nextLocation);
 }
 
 export async function hasLocationPermission(): Promise<boolean> {
@@ -428,6 +440,7 @@ export async function getCurrentLocation(): Promise<StoredLocation | null> {
     city: null,
     state: null,
     country: null,
+    isManualSelection: false,
   };
 
   const cached = await getSavedLocation();
@@ -444,6 +457,7 @@ export async function getCurrentLocation(): Promise<StoredLocation | null> {
       city: cached.city ?? null,
       state: cached.state ?? null,
       country: cached.country ?? null,
+      isManualSelection: false,
     });
   }
 
@@ -464,6 +478,7 @@ export async function getCurrentLocation(): Promise<StoredLocation | null> {
       city: resolvedAddress.city ?? null,
       state: resolvedAddress.state ?? null,
       country: resolvedAddress.country ?? null,
+      isManualSelection: false,
     });
   } catch (error) {
     if (__DEV__) {
@@ -477,6 +492,7 @@ export async function getCurrentLocation(): Promise<StoredLocation | null> {
       city: cached?.city ?? null,
       state: cached?.state ?? null,
       country: cached?.country ?? null,
+      isManualSelection: false,
     });
   }
 }
@@ -485,6 +501,10 @@ export async function refreshLocation(
   forceRequestPermission = false,
 ): Promise<StoredLocation | null> {
   const saved = await getSavedLocation();
+
+  if (!forceRequestPermission && saved?.isManualSelection) {
+    return saved;
+  }
 
   if (
     !forceRequestPermission &&
@@ -502,4 +522,5 @@ export const locationService = {
   getSavedLocation,
   refreshLocation,
   hasLocationPermission,
+  saveSelectedLocation,
 };

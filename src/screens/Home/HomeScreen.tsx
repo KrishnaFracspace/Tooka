@@ -42,6 +42,7 @@ import FullScreenLoader from '../../components/loaders/FullScreenLoader';
 import StateMessage from '../../components/common/StateMessage';
 
 import type { Spa } from '../../types/spa';
+import { getSpaDistance } from '../../utils/distance';
 import { getLocationDisplayParts } from '../../services/locationAddress';
 import { useProfile } from '../../context/ProfileContext';
 import { Analytics, AnalyticsEvents, AnalyticsScreens } from '../../services/firebase/analytics';
@@ -205,74 +206,34 @@ const HomeScreen: React.FC = () => {
   }, [location, locationLoading]);
 
   const handlePressLocation = useCallback(() => {
-    if (location?.permission === 'denied' || location?.permission === 'blocked' || location?.permission === 'restricted' || location?.permission === 'disabled') {
-      if (Platform.OS === 'ios') {
-        Linking.openURL('app-settings:');
-      } else {
-        Linking.openSettings();
-      }
-      return;
-    }
-
-    refreshLocation(false).catch(() => undefined);
-  }, [location?.permission, refreshLocation]);
+    navigation.navigate('LocationSelection');
+  }, [navigation]);
 
   // console.log("Curated spas: ", spas);
 
-  function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): string {
-  const R = 6371e3; // meters
-  const phi1 = (lat1 * Math.PI) / 180;
-  const phi2 = (lat2 * Math.PI) / 180;
-  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) *
-      Math.cos(phi2) *
-      Math.sin(deltaLambda / 2) *
-      Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  const d = R * c;
-  if (d < 1000) {
-    return `${Math.round(d)} m`;
-  }
-  return `${(d / 1000).toFixed(1)} km`;
-}
-
   const featuredSpas = useMemo<FeaturedSpaItem[]>(
     () =>
-      spas.map((spa) => ({
-        id: spa.id,
-        name: spa.name ?? 'Untitled Spa',
-        location: spa.city_name ?? DEFAULT_LOCATION,
-        // distance: calculateDistance(location?.latitude, location?.longitude, spa.lat, spa.lng),
-        distance:
-        location?.latitude != null &&
-        location?.longitude != null
-          ? calculateDistance(
-              location.latitude,
-              location.longitude,
-              Number(spa.lat),
-              Number(spa.lng),
-            )
-          : '--',
-        // distance: DEFAULT_DISTANCE,
-        rating: String(spa.rating_google ?? DEFAULT_RATING),
-        reviews: `${spa.review_count_google ?? 0} reviews`,
-        price: DEFAULT_PRICE,
-        oldPrice: '',
-        badge: DEFAULT_BADGE,
-        image: spa.cover_photo_url ?? PLACEHOLDER_IMAGE,
-        favorite: false,
-      })),
-    [spas],
+      spas.map((spa) => {
+        const { distanceStr } = getSpaDistance(
+          spa,
+          location?.latitude,
+          location?.longitude,
+        );
+        return {
+          id: spa.id,
+          name: spa.name ?? 'Untitled Spa',
+          location: spa.city_name ?? DEFAULT_LOCATION,
+          distance: distanceStr,
+          rating: String(spa.rating_google ?? DEFAULT_RATING),
+          reviews: `${spa.review_count_google ?? 0} reviews`,
+          price: DEFAULT_PRICE,
+          oldPrice: '',
+          badge: DEFAULT_BADGE,
+          image: spa.cover_photo_url ?? PLACEHOLDER_IMAGE,
+          favorite: false,
+        };
+      }),
+    [spas, location?.latitude, location?.longitude],
   );
 
   const previewSpas = useMemo(() => {
@@ -283,28 +244,27 @@ const HomeScreen: React.FC = () => {
 
   const mappedSearchResults = useMemo<FeaturedSpaItem[]>(() => {
     // console.log("Search Results: ", searchResults);
-    return searchResults.map((spa) => ({
-      id: spa.id,
-      name: spa.name ?? 'Untitled Spa',
-      location: spa.subtitle ?? DEFAULT_LOCATION,
-      distance: location?.latitude != null &&
-        location?.longitude != null
-          ? calculateDistance(
-              location.latitude,
-              location.longitude,
-              Number(spa.latitude),
-              Number(spa.longitude),
-            )
-          : '--',
-      rating: spa.rating ?? String(DEFAULT_RATING),
-      reviews: '0 reviews',
-      price: DEFAULT_PRICE,
-      oldPrice: '',
-      badge: DEFAULT_BADGE,
-      image: spa.image ?? PLACEHOLDER_IMAGE,
-      favorite: false,
-    }));
-  }, [searchResults]);
+    return searchResults.map((spa) => {
+      const { distanceStr } = getSpaDistance(
+        { lat: spa.latitude, lng: spa.longitude },
+        location?.latitude,
+        location?.longitude,
+      );
+      return {
+        id: spa.id,
+        name: spa.name ?? 'Untitled Spa',
+        location: spa.subtitle ?? DEFAULT_LOCATION,
+        distance: distanceStr,
+        rating: spa.rating ?? String(DEFAULT_RATING),
+        reviews: '0 reviews',
+        price: DEFAULT_PRICE,
+        oldPrice: '',
+        badge: DEFAULT_BADGE,
+        image: spa.image ?? PLACEHOLDER_IMAGE,
+        favorite: false,
+      };
+    });
+  }, [searchResults, location?.latitude, location?.longitude]);
 
   const curatedList = useMemo<FeaturedSpaItem[]>(() => {
     if (isSearchActive) {
