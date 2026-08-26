@@ -18,6 +18,9 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useLocation } from '../../context/LocationContext';
 import {
   searchLocationAddress,
+  searchLocationAutocomplete,
+  getLocationDetailsFromPlaceId,
+  type LocationAutocompleteResult,
   type LocationSearchResult,
 } from '../../services/locationAddress';
 import type { StoredLocation } from '../../types/location';
@@ -40,22 +43,26 @@ const LocationSelectionScreen: React.FC = () => {
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [results, setResults] = useState<LocationSearchResult[]>([]);
+  const [autocompleteResults, setAutocompleteResults] = useState<LocationAutocompleteResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [selectingPlaceId, setSelectingPlaceId] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [resolvingCity, setResolvingCity] = useState<string | null>(null);
+
+  const latestReqIdRef = useRef(0);
 
   // Debounce search query
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
       setDebouncedQuery('');
-      setResults([]);
+      setAutocompleteResults([]);
       setSearching(false);
       return;
     }
 
+    setSearching(true);
     const timer = setTimeout(() => {
       setDebouncedQuery(trimmed);
     }, DEBOUNCE_MS);
@@ -63,35 +70,34 @@ const LocationSelectionScreen: React.FC = () => {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Execute search when debouncedQuery changes
+  // Execute autocomplete search when debouncedQuery changes
   useEffect(() => {
-    if (!debouncedQuery) {
+    const trimmed = debouncedQuery.trim();
+    if (!trimmed) {
+      setAutocompleteResults([]);
+      setSearching(false);
       return;
     }
 
-    let isMounted = true;
+    const reqId = ++latestReqIdRef.current;
     setSearching(true);
 
-    searchLocationAddress(debouncedQuery)
-      .then((items) => {
-        if (isMounted) {
-          setResults(items);
+    searchLocationAutocomplete(trimmed)
+      .then((predictions) => {
+        if (latestReqIdRef.current === reqId) {
+          setAutocompleteResults(predictions);
         }
       })
       .catch(() => {
-        if (isMounted) {
-          setResults([]);
+        if (latestReqIdRef.current === reqId) {
+          setAutocompleteResults([]);
         }
       })
       .finally(() => {
-        if (isMounted) {
+        if (latestReqIdRef.current === reqId) {
           setSearching(false);
         }
       });
-
-    return () => {
-      isMounted = false;
-    };
   }, [debouncedQuery]);
 
   const handleUseCurrentLocation = useCallback(async () => {
@@ -134,6 +140,52 @@ const LocationSelectionScreen: React.FC = () => {
       Linking.openSettings();
     }
   }, []);
+
+  const handleSelectAutocompleteItem = useCallback(
+    async (item: LocationAutocompleteResult) => {
+      setSelectingPlaceId(item.placeId);
+
+      try {
+        let locationData = await getLocationDetailsFromPlaceId(item.placeId);
+
+        // Fallback to geocoding if place details returned null
+        if (!locationData && item.description) {
+          const fallbackResults = await searchLocationAddress(item.description);
+          if (fallbackResults.length > 0) {
+            locationData = fallbackResults[0];
+          }
+        }
+
+        if (locationData) {
+          const newLocation: StoredLocation = {
+            latitude: locationData.latitude,
+            longitude: locationData.longitude,
+            accuracy: null,
+            timestamp: Date.now(),
+            permission: 'granted',
+            error: null,
+            locality: locationData.locality,
+            subLocality: locationData.subLocality,
+            city: locationData.city ?? locationData.locality ?? item.mainText ?? 'Selected Location',
+            state: locationData.state,
+            country: locationData.country,
+            isManualSelection: true,
+          };
+
+          await setSelectedLocation(newLocation);
+          navigation.goBack();
+          return;
+        }
+      } catch (err) {
+        if (__DEV__) {
+          console.warn('[LocationSelectionScreen] resolve prediction error:', err);
+        }
+      } finally {
+        setSelectingPlaceId(null);
+      }
+    },
+    [navigation, setSelectedLocation],
+  );
 
   const handleSelectSearchResult = useCallback(
     async (item: LocationSearchResult) => {
@@ -259,7 +311,7 @@ const LocationSelectionScreen: React.FC = () => {
                 <ActivityIndicator size="small" color="#FFB02E" />
                 <Text style={styles.loadingText}>Searching locations...</Text>
               </View>
-            ) : results.length === 0 ? (
+            ) : autocompleteResults.length === 0 && query.trim().length >= 2 ? (
               <View style={styles.emptyBox}>
                 <Ionicons name="location-outline" size={32} color="#8F8F8F" />
                 <Text style={styles.emptyTitle}>No locations found</Text>
@@ -267,24 +319,31 @@ const LocationSelectionScreen: React.FC = () => {
               </View>
             ) : (
               <FlatList
-                data={results}
-                keyExtractor={(_, index) => index.toString()}
+                data={autocompleteResults}
+                keyExtractor={(item) => item.placeId}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => {
-                  const title = item.locality ?? item.subLocality ?? item.city ?? item.formattedAddress;
+                  const isSelecting = selectingPlaceId === item.placeId;
                   return (
                     <Pressable
                       style={styles.resultItem}
-                      onPress={() => handleSelectSearchResult(item)}
+                      onPress={() => handleSelectAutocompleteItem(item)}
+                      disabled={Boolean(selectingPlaceId)}
                     >
                       <Ionicons name="location-sharp" size={20} color="#FFB02E" style={styles.resultIcon} />
                       <View style={styles.resultTextWrap}>
-                        <Text style={styles.resultTitle}>{title}</Text>
-                        <Text style={styles.resultSubtitle} numberOfLines={1}>
-                          {item.formattedAddress}
-                        </Text>
+                        <Text style={styles.resultTitle}>{item.mainText}</Text>
+                        {Boolean(item.secondaryText) && (
+                          <Text style={styles.resultSubtitle} numberOfLines={1}>
+                            {item.secondaryText}
+                          </Text>
+                        )}
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color="#C4C4C4" />
+                      {isSelecting ? (
+                        <ActivityIndicator size="small" color="#FFB02E" />
+                      ) : (
+                        <Ionicons name="chevron-forward" size={18} color="#C4C4C4" />
+                      )}
                     </Pressable>
                   );
                 }}

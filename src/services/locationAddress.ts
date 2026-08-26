@@ -225,3 +225,134 @@ export const searchLocationAddress = async (
     return [];
   }
 };
+
+export interface LocationAutocompleteResult {
+  placeId: string;
+  description: string;
+  mainText: string;
+  secondaryText: string;
+}
+
+export const searchLocationAutocomplete = async (
+  query: string,
+  signal?: AbortSignal,
+): Promise<LocationAutocompleteResult[]> => {
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length < 2) {
+    return [];
+  }
+
+  try {
+    const response = await axios.get(
+      'https://maps.googleapis.com/maps/api/place/autocomplete/json',
+      {
+        params: {
+          input: normalizedQuery,
+          key: GOOGLE_GEOCODING_API_KEY,
+          language: 'en',
+          components: 'country:in',
+        },
+        timeout: 8000,
+        signal,
+      },
+    );
+
+    const predictions = Array.isArray(response?.data?.predictions)
+      ? response.data.predictions
+      : [];
+
+    return predictions
+      .map((item: any) => {
+        if (!item?.place_id) {
+          return null;
+        }
+
+        return {
+          placeId: item.place_id,
+          description: item.description ?? '',
+          mainText: item.structured_formatting?.main_text ?? item.description ?? '',
+          secondaryText: item.structured_formatting?.secondary_text ?? '',
+        };
+      })
+      .filter((res: LocationAutocompleteResult | null): res is LocationAutocompleteResult => res !== null);
+  } catch (error) {
+    if (axios.isCancel(error)) {
+      return [];
+    }
+    if (__DEV__) {
+      console.warn('[locationAddress] autocomplete failed', error);
+    }
+    return [];
+  }
+};
+
+export const getLocationDetailsFromPlaceId = async (
+  placeId: string,
+): Promise<LocationSearchResult | null> => {
+  if (!placeId) {
+    return null;
+  }
+
+  try {
+    const response = await axios.get(
+      'https://maps.googleapis.com/maps/api/place/details/json',
+      {
+        params: {
+          place_id: placeId,
+          key: GOOGLE_GEOCODING_API_KEY,
+          language: 'en',
+          fields: 'geometry,address_components,formatted_address',
+        },
+        timeout: 8000,
+      },
+    );
+
+    const result = response?.data?.result;
+    if (!result) {
+      return null;
+    }
+
+    const lat = result.geometry?.location?.lat;
+    const lng = result.geometry?.location?.lng;
+    if (lat == null || lng == null) {
+      return null;
+    }
+
+    const components = result.address_components;
+    const locality = findAddressComponent(components, [
+      'locality',
+      'sublocality',
+      'sublocality_level_1',
+    ]);
+    const subLocality = findAddressComponent(components, [
+      'sublocality',
+      'sublocality_level_1',
+      'neighborhood',
+    ]);
+    const city =
+      findAddressComponent(components, ['locality']) ??
+      findAddressComponent(components, [
+        'administrative_area_level_2',
+      ]);
+    const state = findAddressComponent(components, [
+      'administrative_area_level_1',
+    ]);
+    const country = findAddressComponent(components, ['country']);
+
+    return {
+      latitude: Number(lat),
+      longitude: Number(lng),
+      locality: locality ?? null,
+      subLocality: subLocality ?? null,
+      city: city ?? null,
+      state: state ?? null,
+      country: country ?? null,
+      formattedAddress: result.formatted_address ?? '',
+    };
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[locationAddress] place details failed', error);
+    }
+    return null;
+  }
+};
