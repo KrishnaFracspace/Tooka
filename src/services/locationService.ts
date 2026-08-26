@@ -207,63 +207,115 @@ const requestIOSPermission =
 //         maximumAge: 30000,
 //         // timeout: 15000,
 //         // maximumAge: 10000,
-//       },
-//     );
-//   });
-const LOCATION_OPTIONS = {
-  enableHighAccuracy: false,
-  timeout: 15000,
-  maximumAge: 30000,
+const LOCATION_OPTIONS_FAST = {
+  enableHighAccuracy: true,
+  timeout: 6000,
+  maximumAge: 10000,
 };
 
-const getPosition = (): Promise<GeolocationResponse> =>
+const LOCATION_OPTIONS_BALANCED = {
+  enableHighAccuracy: false,
+  timeout: 6000,
+  maximumAge: 10000,
+};
+
+const getPositionWithOptions = (options: typeof LOCATION_OPTIONS_FAST, label: string): Promise<GeolocationResponse> =>
   new Promise((resolve, reject) => {
+    let isSettled = false;
+
+    const timerId = setTimeout(() => {
+      if (!isSettled) {
+        isSettled = true;
+        reject(new Error(`Geolocation ${label} JS timeout`));
+      }
+    }, options.timeout + 1000);
+
     Geolocation.getCurrentPosition(
-      resolve,
-      reject,
-      LOCATION_OPTIONS,
+      (pos) => {
+        if (!isSettled) {
+          isSettled = true;
+          clearTimeout(timerId);
+          resolve(pos);
+        }
+      },
+      (err) => {
+        if (!isSettled) {
+          isSettled = true;
+          clearTimeout(timerId);
+          reject(err);
+        }
+      },
+      options,
     );
+  });
+
+const getPosition = (): Promise<GeolocationResponse> =>
+  getPositionWithOptions(LOCATION_OPTIONS_FAST, 'highAccuracy').catch((firstErr) => {
+    if (__DEV__) {
+      console.log('[LOCATION] getPosition highAccuracy failed, trying balanced fallback...', firstErr?.message);
+    }
+    return getPositionWithOptions(LOCATION_OPTIONS_BALANCED, 'balanced');
   });
 
 const watchPositionUntilFound = (): Promise<GeolocationResponse> =>
   new Promise((resolve, reject) => {
     let watchId: number | null = null;
+    let isSettled = false;
+
+    const cleanup = () => {
+      if (watchId !== null) {
+        try {
+          Geolocation.clearWatch(watchId);
+        } catch {}
+        watchId = null;
+      }
+    };
 
     const timeoutId = setTimeout(() => {
-      if (watchId !== null) {
-        Geolocation.clearWatch(watchId);
+      if (!isSettled) {
+        isSettled = true;
+        cleanup();
+        reject(new Error('watchPosition timeout'));
       }
+    }, 6000);
 
-      reject(new Error('Location timeout'));
-    }, 20000);
-
-    watchId = Geolocation.watchPosition(
-      (position) => {
-        if (
-          position.coords.accuracy &&
-          position.coords.accuracy <= 30
-        ) {
-          clearTimeout(timeoutId);
-          Geolocation.clearWatch(watchId!);
-          resolve(position);
-        }
-      },
-      (error) => {
+    try {
+      watchId = Geolocation.watchPosition(
+        (position) => {
+          if (
+            !isSettled &&
+            position?.coords?.latitude != null &&
+            position?.coords?.longitude != null
+          ) {
+            isSettled = true;
+            clearTimeout(timeoutId);
+            cleanup();
+            resolve(position);
+          }
+        },
+        (error) => {
+          if (!isSettled) {
+            isSettled = true;
+            clearTimeout(timeoutId);
+            cleanup();
+            reject(error);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          distanceFilter: 0,
+          interval: 1000,
+          fastestInterval: 500,
+        },
+      );
+    } catch (err) {
+      if (!isSettled) {
+        isSettled = true;
         clearTimeout(timeoutId);
-
-        if (watchId !== null) {
-          Geolocation.clearWatch(watchId);
-        }
-
-        reject(error);
-      },
-      {
-        enableHighAccuracy: true,
-        distanceFilter: 0,
-        interval: 2000,
-        fastestInterval: 1000,
-      },
-    );
+        cleanup();
+        reject(err);
+      }
+    }
   });
 
 const mapLocationError = (error: GeolocationError): LocationPermissionStatus => {
@@ -341,159 +393,146 @@ export async function hasLocationPermission(): Promise<boolean> {
   return saved?.permission === 'granted';
 }
 
-// export async function getCurrentLocation(): Promise<StoredLocation | null> {
-//   const permission = await requestLocationPermission();
-
-//   if (permission !== 'granted') {
-//     return persistPermissionStatus(permission);
-//   }
-
-//   try {
-//     const position = await getPosition();
-
-//     const nextLocation: StoredLocation = {
-//       latitude: position.coords.latitude,
-//       longitude: position.coords.longitude,
-//       accuracy: position.coords.accuracy,
-//       timestamp: position.timestamp || Date.now(),
-//       permission: 'granted',
-//       error: null,
-//     };
-
-//     return persistLocation(nextLocation);
-//   } catch (error) {
-//     const geoError = error as GeolocationError;
-//     const permissionStatus = mapLocationError(geoError);
-//     const saved = await persistPermissionStatus(
-//       permissionStatus,
-//       geoError.message ?? 'Unable to get current location.',
-//     );
-
-//     if (__DEV__) {
-//       console.warn('[locationService] getCurrentLocation error:', geoError);
-//     }
-//     console.log('Location Error:', JSON.stringify(error, null, 2));
-//     // console.log('Code:', error?.code);
-//     // console.log('Message:', error?.message);
-//     console.log('Full Error:', error);
-
-//     return saved;
-//   }
-// }
+let locationReqCount = 0;
 
 export async function getCurrentLocation(): Promise<StoredLocation | null> {
-  const permission = await requestLocationPermission();
-
-  if (permission !== 'granted') {
-    return persistPermissionStatus(permission);
+  const reqId = ++locationReqCount;
+  const startTime = Date.now();
+  if (__DEV__) {
+    console.log(`[LOCATION][req #${reqId}][t=0ms] getCurrentLocation START`);
   }
 
-  let position: GeolocationResponse | null = null;
-
   try {
-    console.log('Trying getCurrentPosition()...');
+    if (__DEV__) {
+      console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] requestLocationPermission START`);
+    }
+    const permission = await requestLocationPermission();
+    if (__DEV__) {
+      console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] requestLocationPermission RESULT:`, permission);
+    }
 
-    position = await getPosition();
-  } catch (error) {
-    console.log('First attempt failed. Retrying...');
+    if (permission !== 'granted') {
+      return await persistPermissionStatus(permission);
+    }
+
+    let position: GeolocationResponse | null = null;
 
     try {
-      await new Promise<void>(resolve => {
-        setTimeout(() => resolve(), 1500);
-      });
-
+      if (__DEV__) {
+        console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] getPosition START`);
+      }
       position = await getPosition();
-    } catch {
-      console.log('Retry failed. Switching to watchPosition()...');
+      if (__DEV__) {
+        console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] getPosition SUCCESS:`, position?.coords?.latitude, position?.coords?.longitude);
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] getPosition FAILED:`, error);
+        console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] watchPositionUntilFound START`);
+      }
 
       try {
         position = await watchPositionUntilFound();
-      } catch (watchError) {
+        if (__DEV__) {
+          console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] watchPositionUntilFound SUCCESS:`, position?.coords?.latitude, position?.coords?.longitude);
+        }
+      } catch (watchError: any) {
         const geoError = watchError as GeolocationError;
-
         const permissionStatus = mapLocationError(geoError);
 
-        const saved = await persistPermissionStatus(
+        if (__DEV__) {
+          console.warn(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] GPS acquisition failed completely:`, watchError);
+        }
+
+        return await persistPermissionStatus(
           permissionStatus,
-          geoError.message ?? 'Unable to get current location.',
+          watchError?.message ?? 'Unable to get current location.',
         );
-
-        console.warn(
-          '[locationService] watchPosition failed:',
-          geoError,
-        );
-
-        return saved;
       }
     }
-  }
 
-  const nextLocation: StoredLocation = {
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude,
-    accuracy: position.coords.accuracy,
-    timestamp: position.timestamp || Date.now(),
-    permission: 'granted',
-    error: null,
-    locality: null,
-    subLocality: null,
-    city: null,
-    state: null,
-    country: null,
-    isManualSelection: false,
-  };
-
-  const cached = await getSavedLocation();
-  const shouldResolveAddress =
-    cached?.latitude === nextLocation.latitude &&
-    cached?.longitude === nextLocation.longitude &&
-    isAddressCacheFresh(cached?.timestamp);
-
-  if (shouldResolveAddress && cached?.city) {
-    return persistLocation({
-      ...nextLocation,
-      locality: cached.locality ?? null,
-      subLocality: cached.subLocality ?? null,
-      city: cached.city ?? null,
-      state: cached.state ?? null,
-      country: cached.country ?? null,
+    const nextLocation: StoredLocation = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      timestamp: position.timestamp || Date.now(),
+      permission: 'granted',
+      error: null,
+      locality: null,
+      subLocality: null,
+      city: null,
+      state: null,
+      country: null,
       isManualSelection: false,
-    });
-  }
+    };
 
-  try {
-    if (nextLocation.latitude === null || nextLocation.longitude === null) {
-      throw new Error('Invalid coordinates');
+    const cached = await getSavedLocation();
+    const shouldResolveAddress =
+      cached?.latitude === nextLocation.latitude &&
+      cached?.longitude === nextLocation.longitude &&
+      isAddressCacheFresh(cached?.timestamp);
+
+    if (shouldResolveAddress && cached?.city) {
+      if (__DEV__) {
+        console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] Using fresh cached address:`, cached.city);
+      }
+      return await persistLocation({
+        ...nextLocation,
+        locality: cached.locality ?? null,
+        subLocality: cached.subLocality ?? null,
+        city: cached.city ?? null,
+        state: cached.state ?? null,
+        country: cached.country ?? null,
+        isManualSelection: false,
+      });
     }
 
-    const resolvedAddress = await resolveAddressForCoordinates(
-      nextLocation.latitude,
-      nextLocation.longitude,
-    );
+    try {
+      if (nextLocation.latitude === null || nextLocation.longitude === null) {
+        throw new Error('Invalid coordinates');
+      }
 
-    return persistLocation({
-      ...nextLocation,
-      locality: resolvedAddress.locality ?? null,
-      subLocality: resolvedAddress.subLocality ?? null,
-      city: resolvedAddress.city ?? null,
-      state: resolvedAddress.state ?? null,
-      country: resolvedAddress.country ?? null,
-      isManualSelection: false,
-    });
-  } catch (error) {
+      if (__DEV__) {
+        console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] resolveAddressForCoordinates START (${nextLocation.latitude}, ${nextLocation.longitude})`);
+      }
+
+      const resolvedAddress = await resolveAddressForCoordinates(
+        nextLocation.latitude,
+        nextLocation.longitude,
+      );
+
+      if (__DEV__) {
+        console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] resolveAddressForCoordinates SUCCESS:`, resolvedAddress);
+      }
+
+      return await persistLocation({
+        ...nextLocation,
+        locality: resolvedAddress.locality ?? null,
+        subLocality: resolvedAddress.subLocality ?? null,
+        city: resolvedAddress.city ?? null,
+        state: resolvedAddress.state ?? null,
+        country: resolvedAddress.country ?? null,
+        isManualSelection: false,
+      });
+    } catch (error) {
+      if (__DEV__) {
+        console.warn(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] failed to resolve address:`, error);
+      }
+
+      return await persistLocation({
+        ...nextLocation,
+        locality: cached?.locality ?? null,
+        subLocality: cached?.subLocality ?? null,
+        city: cached?.city ?? null,
+        state: cached?.state ?? null,
+        country: cached?.country ?? null,
+        isManualSelection: false,
+      });
+    }
+  } finally {
     if (__DEV__) {
-      console.warn('[locationService] failed to resolve address:', error);
+      console.log(`[LOCATION][req #${reqId}][t=${Date.now() - startTime}ms] getCurrentLocation COMPLETED`);
     }
-
-    return persistLocation({
-      ...nextLocation,
-      locality: cached?.locality ?? null,
-      subLocality: cached?.subLocality ?? null,
-      city: cached?.city ?? null,
-      state: cached?.state ?? null,
-      country: cached?.country ?? null,
-      isManualSelection: false,
-    });
   }
 }
 
@@ -502,7 +541,14 @@ export async function refreshLocation(
 ): Promise<StoredLocation | null> {
   const saved = await getSavedLocation();
 
+  if (__DEV__) {
+    console.log(`[LOCATION] refreshLocation called (force=${forceRequestPermission}, savedManual=${saved?.isManualSelection}, savedCity=${saved?.city})`);
+  }
+
   if (!forceRequestPermission && saved?.isManualSelection) {
+    if (__DEV__) {
+      console.log('[LOCATION] refreshLocation: Manual selection active, returning saved without GPS fetch.');
+    }
     return saved;
   }
 
@@ -511,6 +557,9 @@ export async function refreshLocation(
     saved?.permission &&
     STARTUP_FINAL_STATUSES.includes(saved.permission)
   ) {
+    if (__DEV__) {
+      console.log('[LOCATION] refreshLocation: Startup final status reached, returning saved.');
+    }
     return saved;
   }
 

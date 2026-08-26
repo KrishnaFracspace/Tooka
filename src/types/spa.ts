@@ -17,4 +17,5 @@ export interface Spa {
   distance_m?: number | string | null;
   min_booking_amount?: string | null;
   minimum_booking_amount?: string | null;
+  is_hidden?: boolean;
 }

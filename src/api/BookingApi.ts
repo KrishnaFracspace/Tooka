@@ -276,6 +276,8 @@ const toBackendBookingListItem = (
     asString(pricing?.currency) ??
     null;
 
+    console.log('backendBooking: ', appointmentAt, booking.appointment_at);
+
   return {
     id:
       asString(booking.id) ??
@@ -414,6 +416,7 @@ export const BookingApi = {
     }
 
     const rows = payload.data?.rows;
+    // console.log("Booking history rows: ", rows);
 
     if (rows == null) {
       return { items: [] };

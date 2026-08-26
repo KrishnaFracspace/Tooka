@@ -39,8 +39,9 @@ export interface MappedSpa {
 
 export interface PaginationInfo {
   page: number;
-  totalPages: number;
+  limit: number;
   totalRecords: number;
+  hasMore: boolean;
 }
 
 interface NearbySpaContextType {
@@ -176,11 +177,20 @@ export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
           cancelTokenSource.token,
         );
 
+        console.log(
+  '========== NEARBY PAGINATION DEBUG ==========',
+);
+console.log('Requested page:', targetPage);
+console.log('Full response:', JSON.stringify(response, null, 2));
+console.log('response.data:', response?.data);
+console.log('response.pagination:', response?.pagination);
+console.log('============================================');
+
         // const newSpasRaw: Spa[] = response?.data?.spas || [];
         const newSpasRaw: Spa[] = Array.isArray(response?.data)
           ? response.data
           : [];
-        const meta = response?.pagination;
+        const meta = response?.meta;
         // const meta = null;
         // console.log("Nearby spas", response?.data.length);
         // console.log('========== API RESPONSE ==========');
@@ -261,10 +271,11 @@ export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
           //   totalRecords: meta.total_records || 0,
           // });
           setPagination({
-                page: meta.page,
-                totalPages: meta.totalPages,
-                totalRecords: meta.total,
-            });
+            page: meta.page,
+            limit: meta.limit,
+            totalRecords: meta.total,
+            hasMore: meta.hasMore,
+          });
         }
       } catch (err: any) {
         if (axios.isCancel(err)) {
@@ -311,14 +322,14 @@ export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
     if (
       loadingMore ||
       refreshing ||
-      !pagination ||
-      pagination.page >= pagination.totalPages ||
+      !pagination?.hasMore ||
       !location ||
       location.latitude === null ||
       location.longitude === null
     ) {
       return;
     }
+
     await fetchSpas(
       location.latitude,
       location.longitude,

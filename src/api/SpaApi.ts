@@ -1,4 +1,3 @@
-import axiosClient from './axiosClient';
 import type { Spa } from '../types/spa';
 import type { SpaDetails } from '../types/spaDetails';
 import authAxiosClient from './authAxiosClient';
@@ -26,6 +25,13 @@ interface ApiResponse<T> {
   data: T;
 }
 
+const filterVisibleSpas = (spas?: Spa[] | null): Spa[] => {
+  if (!Array.isArray(spas)) {
+    return [];
+  }
+  return spas.filter((spa) => spa && spa.is_hidden !== true);
+};
+
 export const SpaApi = {
   /**
    * Get spas by city
@@ -41,8 +47,8 @@ export const SpaApi = {
       },
     );
 
-    const data = Array.isArray(response.data?.data) ? response.data.data : [];
-    const curated = Array.isArray(response.data?.curated) ? response.data.curated : [];
+    const curated = filterVisibleSpas(response.data?.curated);
+    const data = filterVisibleSpas(response.data?.data);
     const featuredSpas = curated.length > 0 ? curated : data;
 
     return { featuredSpas };
@@ -85,8 +91,27 @@ export const SpaApi = {
       },
     );
 
-    // console.log("Nearby spas: ", response.data);
-    return response.data;
+    const resBody = response.data;
+    if (!resBody) {
+      return resBody;
+    }
+
+    if (Array.isArray(resBody)) {
+      return filterVisibleSpas(resBody);
+    }
+
+    if (typeof resBody === 'object') {
+      const updatedObj = { ...resBody };
+      if (Array.isArray(updatedObj.data)) {
+        updatedObj.data = filterVisibleSpas(updatedObj.data);
+      }
+      if (Array.isArray(updatedObj.curated)) {
+        updatedObj.curated = filterVisibleSpas(updatedObj.curated);
+      }
+      return updatedObj;
+    }
+
+    return resBody;
   },
 
   /**
@@ -104,7 +129,7 @@ export const SpaApi = {
       },
     );
 
-    return Array.isArray(response.data?.data) ? response.data.data : [];
+    return filterVisibleSpas(response.data?.data);
   },
 };
 

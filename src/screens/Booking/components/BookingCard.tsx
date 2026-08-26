@@ -309,6 +309,7 @@ const BookingCard = React.memo<BookingCardProps>(function BookingCard({
   style,
 }) {
   const { width } = useWindowDimensions();
+  // console.log("booking in booking card: ", booking);
 
   // Derive section from booking status (uses existing util, no logic change)
   const section: BookingSection =
