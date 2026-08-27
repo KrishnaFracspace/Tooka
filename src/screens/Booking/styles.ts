@@ -1,16 +1,19 @@
 import { Platform, StyleSheet } from 'react-native';
 
 export const colors = {
-  background: '#FFF8F0',
-  primary: '#FFAE2B',
-  primaryDark: '#F59B00',
-  heading: '#1F1F1F',
-  body: '#777777',
-  muted: '#969696',
-  border: '#E5E5E5',
+  background: '#FBF3EA',
+  primary: '#FFAA26',
+  primaryDark: '#E8950F',
+  heading: '#2D2B28',
+  body: '#6C6258',
+  muted: '#9A9084',
+  border: '#EBE3D7',
   white: '#FFFFFF',
-  disabled: '#F4F4F4',
-  priceBubble: '#FFF0D4',
+  disabled: '#F4EFEA',
+  priceBubble: '#FFF3E0',
+  accentGreenBg: '#EBF7ED',
+  accentGreenText: '#2E7D32',
+  ratingGold: '#F8C51D',
 };
 
 export const fonts = {
@@ -21,11 +24,11 @@ export const fonts = {
 };
 
 export const sharedShadow = {
-  shadowColor: '#000000',
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 5 },
-  elevation: 3,
+  shadowColor: '#3D2D22',
+  shadowOpacity: 0.06,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 2,
 };
 
 export const styles = StyleSheet.create({
@@ -38,124 +41,190 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingBottom: 124,
+    paddingBottom: 120,
   },
   tabletContent: {
     alignSelf: 'center',
-    maxWidth: 700,
+    maxWidth: 720,
     width: '100%',
   },
+
+  // ──────────────────────────────────────────────
+  // Top Header & Hero/Summary Component
+  // ──────────────────────────────────────────────
   heroWrap: {
     backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'ios' ? 12 : 16,
   },
-  heroImageWrap: {
-    width: '100%',
-    // height: 500,
-    aspectRatio: 0.96,
-    overflow: 'hidden',
-    backgroundColor: '#F3EEE8',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFill,
-  },
-  backButton: {
-    position: 'absolute',
-    left: 30,
-    top: 50,
-    width: 30,
-    height: 30,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(145,145,145,0.48)',
-  },
-  curveSvg: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: -1,
-  },
-  serviceCard: {
-    position: 'absolute',
-    left: 42,
-    right: 42,
-    bottom: -22,
-    // minHeight: 102,
-    borderRadius: 18,
-    backgroundColor: colors.white,
+  topHeaderBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 18,
-    flexWrap:'wrap',
-    ...sharedShadow,
+    marginBottom: 16,
   },
-  serviceTitle: {
-    fontFamily: fonts.heading,
-    fontSize: 16,
-    color: colors.heading,
-  },
-  durationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 14,
-  },
-  clockCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.muted,
+  headerBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 9,
+    ...sharedShadow,
   },
-  durationText: {
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.muted,
-    marginLeft: 4,
+  headerTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 18,
+    color: colors.heading,
   },
-  priceLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.muted,
-    textTransform: 'uppercase',
+  headerRightPlaceholder: {
+    width: 38,
   },
-  priceValue: {
-    marginTop: 22,
-    textAlign: 'right',
+
+  // Spa Confirmation Summary Card
+  summaryCard: {
+    marginHorizontal: 18,
+    marginBottom: 16,
+    borderRadius: 16,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    ...sharedShadow,
+  },
+  spaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  spaThumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#EFE6DC',
+  },
+  spaMetaColumn: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  spaNameText: {
     fontFamily: fonts.heading,
     fontSize: 16,
     color: colors.heading,
+    marginBottom: 4,
   },
+  spaLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  spaLocationText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.body,
+    marginLeft: 4,
+    flex: 1,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  ratingText: {
+    fontFamily: fonts.subHeading,
+    fontSize: 13,
+    color: colors.heading,
+    marginLeft: 3,
+  },
+
+  // Selected Treatment Detail Divider & Box
+  serviceDivider: {
+    height: 1,
+    backgroundColor: '#F3EDE4',
+    marginVertical: 12,
+  },
+  selectedServiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectedServiceMeta: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  serviceCardTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 15,
+    color: colors.heading,
+    marginBottom: 4,
+  },
+  servicePillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F7EFE6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  metaPillText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.body,
+    marginLeft: 4,
+  },
+  servicePriceText: {
+    fontFamily: fonts.heading,
+    fontSize: 18,
+    color: colors.primaryDark,
+  },
+
+  // Legacy fallback styles for compatibility
+  heroImageWrap: { width: 0, height: 0 },
+  heroImage: { width: 0, height: 0 },
+  heroOverlay: { display: 'none' },
+  backButton: { display: 'none' },
+  curveSvg: { display: 'none' },
+  serviceCard: {},
+  serviceTitle: {},
+  durationRow: {},
+  clockCircle: {},
+  durationText: {},
+  priceLabel: {},
+  priceValue: {},
+
+  // ──────────────────────────────────────────────
+  // Sections (Schedule, Slots, Options)
+  // ──────────────────────────────────────────────
   section: {
-    paddingHorizontal: 21,
+    paddingHorizontal: 18,
+    marginTop: 16,
   },
   firstSection: {
-    paddingTop: 40,
+    marginTop: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 21,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontFamily: fonts.heading,
-    fontSize: 16,
+    fontSize: 17,
     color: colors.heading,
   },
   sectionSideText: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.muted,
   },
+
+  // Guest Selector
   guestRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -164,11 +233,17 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 8,
+    ...sharedShadow,
   },
   stepperButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
@@ -177,25 +252,25 @@ export const styles = StyleSheet.create({
   },
   stepperButtonDisabled: {
     backgroundColor: colors.disabled,
+    borderColor: 'transparent',
   },
   guestCountPill: {
     flex: 1,
-    height: 58,
-    borderRadius: 18,
-    marginHorizontal: 14,
+    height: 44,
+    borderRadius: 12,
+    marginHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
   },
   guestCountValue: {
     fontFamily: fonts.heading,
-    fontSize: 22,
+    fontSize: 18,
     color: colors.white,
   },
   guestCountLabel: {
-    marginTop: 2,
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.white,
   },
   guestButton: {
@@ -213,94 +288,114 @@ export const styles = StyleSheet.create({
   },
   guestText: {
     fontFamily: fonts.body,
-    fontSize: 18,
+    fontSize: 16,
     color: colors.heading,
   },
   guestTextSelected: {
     color: colors.white,
   },
+
+  // ──────────────────────────────────────────────
+  // Booking Schedule & Date Tabs
+  // ──────────────────────────────────────────────
   scheduleSection: {
-    paddingTop: 20,
+    marginTop: 16,
   },
   nextAvailable: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   nextAvailableText: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.primary,
-    marginLeft: 5,
+    fontSize: 11,
+    color: colors.primaryDark,
+    marginLeft: 4,
     textTransform: 'uppercase',
   },
   tabsCard: {
-    height: 60,
-    borderRadius: 16,
-    backgroundColor: colors.white,
     flexDirection: 'row',
-    overflow: 'hidden',
+    gap: 10,
   },
   dateTab: {
     flex: 1,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
+    ...sharedShadow,
+  },
+  dateTabActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
   },
   dateTabText: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.muted,
+    fontSize: 13,
+    color: colors.body,
   },
   dateTabTextActive: {
+    fontFamily: fonts.heading,
     color: colors.heading,
   },
   dateUnderline: {
-    position: 'absolute',
-    bottom: 16,
-    width: '70%',
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
+    display: 'none',
   },
+
+  // ──────────────────────────────────────────────
+  // Time Slots Grid
+  // ──────────────────────────────────────────────
   slotCard: {
-    marginTop: 10,
-    borderRadius: 16,
+    marginTop: 8,
+    borderRadius: 18,
     backgroundColor: colors.white,
-    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    ...sharedShadow,
   },
   slotGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 8,
   },
   slotState: {
-    minHeight: 118,
+    minHeight: 90,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   slotStateTitle: {
     fontFamily: fonts.heading,
-    fontSize: 15,
+    fontSize: 14,
     color: colors.heading,
     textAlign: 'center',
   },
   slotStateText: {
-    marginTop: 8,
+    marginTop: 4,
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.muted,
     textAlign: 'center',
   },
   slotButton: {
-    height: 40,
-    borderRadius: 14,
+    height: 42,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.white,
-    marginBottom: 18,
+    marginVertical: 4,
   },
   slotButtonSelected: {
     backgroundColor: colors.primary,
@@ -309,118 +404,148 @@ export const styles = StyleSheet.create({
   },
   slotButtonDisabled: {
     backgroundColor: colors.disabled,
-    borderColor: colors.border,
+    borderColor: 'transparent',
   },
   slotText: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.muted,
+    fontSize: 13,
+    color: colors.heading,
   },
   slotTextSelected: {
+    fontFamily: fonts.heading,
     color: colors.white,
   },
   slotTextDisabled: {
-    color: '#D3D3D3',
+    color: '#BDB3A6',
   },
   selectedBadge: {
     position: 'absolute',
-    right: 2,
-    top: 2,
+    right: 3,
+    top: 3,
     backgroundColor: colors.heading,
-    borderRadius: 2,
+    borderRadius: 3,
     paddingHorizontal: 3,
-    paddingVertical: 2,
+    paddingVertical: 1,
   },
   selectedBadgeText: {
     fontFamily: fonts.body,
-    fontSize: 7,
+    fontSize: 6,
     color: colors.white,
+    letterSpacing: 0.5,
   },
+
+  // Arrival Tip Card
+  arrivalTipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.accentGreenBg,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  arrivalTipText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.accentGreenText,
+    marginLeft: 6,
+    flex: 1,
+  },
+
+  // ──────────────────────────────────────────────
+  // Booking Option Card
+  // ──────────────────────────────────────────────
   optionSection: {
-    paddingTop: 24,
+    marginTop: 18,
   },
   optionCard: {
-    // minHeight: 134,
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 18,
+    borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    paddingHorizontal: 15,
-    paddingVertical: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     overflow: 'hidden',
-    marginTop:15
+    marginTop: 8,
+    ...sharedShadow,
+  },
+  optionCardSelected: {
+    borderColor: colors.primary,
   },
   optionTopRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   radioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 14,
-    borderWidth: 3,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
     borderColor: colors.heading,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 17,
-    marginTop: 2,
+    marginRight: 14,
   },
   radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 7,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
     backgroundColor: colors.heading,
   },
   optionCopy: {
     flex: 1,
-    paddingRight: 70,
+    paddingRight: 60,
   },
   optionTitle: {
     fontFamily: fonts.heading,
-    fontSize: 16,
+    fontSize: 15,
     color: colors.heading,
   },
   optionSubtitle: {
-    marginTop: 4,
+    marginTop: 2,
     fontFamily: fonts.regular,
     fontSize: 11,
     color: colors.muted,
   },
   optionDescription: {
-    marginTop: 10,
+    marginTop: 6,
     fontFamily: fonts.regular,
     fontSize: 11,
-    lineHeight: 17,
-    color: colors.muted,
+    lineHeight: 16,
+    color: colors.body,
   },
   priceBubble: {
     position: 'absolute',
-    right: -20,
+    right: 0,
     top: 0,
-    width: 100,
-    height: 70,
-    borderBottomLeftRadius: 70,
+    bottom: 0,
+    width: 72,
     backgroundColor: colors.priceBubble,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingRight: 18,
-    paddingTop: 10,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
   },
   priceBubbleText: {
     fontFamily: fonts.heading,
     fontSize: 16,
     color: colors.heading,
   },
+
+  // ──────────────────────────────────────────────
+  // Payment Footer / CTA
+  // ──────────────────────────────────────────────
   footerWrap: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.background,
-    paddingHorizontal: 21,
+    backgroundColor: colors.white,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(229,229,229,0.4)',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    ...sharedShadow,
   },
   footerInner: {
     flexDirection: 'row',
@@ -429,36 +554,38 @@ export const styles = StyleSheet.create({
   },
   payLabel: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 12,
     color: colors.muted,
   },
   payValue: {
-    marginTop: 4,
+    marginTop: 2,
     fontFamily: fonts.heading,
-    fontSize: 18,
+    fontSize: 20,
     color: colors.heading,
   },
   proceedButton: {
-    minWidth: '52%',
-    height: 50,
+    width: '100%',
+    height: 52,
     borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: colors.primary,
   },
   proceedButtonDisabled: {
-    opacity: 0.48,
+    opacity: 0.5,
   },
   proceedGradient: {
     flex: 1,
     backgroundColor: colors.primary,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   proceedPressed: {
-    opacity: Platform.OS === 'ios' ? 0.7 : 0.85,
+    opacity: Platform.OS === 'ios' ? 0.75 : 0.88,
   },
   proceedText: {
     fontFamily: fonts.heading,
-    fontSize: 18,
+    fontSize: 16,
     color: colors.white,
   },
 });

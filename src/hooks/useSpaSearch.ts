@@ -13,6 +13,7 @@ export interface SearchSpaItem {
   image: string;
   latitude: number;
   longitude: number;
+  starting_price?: string | null;
 }
 
 export interface UseSpaSearchResult {
@@ -52,6 +53,7 @@ const mapSpaToSearchItem = (spa: Spa): SearchSpaItem => {
     typeB: 'Spa',
     rating: safeRating,
     image: spa.cover_photo_url ?? PLACEHOLDER_IMAGE,
+    starting_price: spa.starting_price ?? null,
     latitude: Number.parseFloat(spa.lat) || 0,
     longitude: Number.parseFloat(spa.lng) || 0,
   };

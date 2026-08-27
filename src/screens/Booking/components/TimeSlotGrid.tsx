@@ -5,6 +5,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import TimeSlotButton from './TimeSlotButton';
 import { colors, styles } from '../styles';
@@ -28,13 +29,42 @@ function TimeSlotGrid({
 }: Props): React.ReactElement {
   const { width } = useWindowDimensions();
   const slotWidth = useMemo(() => {
-    const contentWidth = Math.min(width, 720) - 70;
-    return Math.floor((contentWidth - 24) / 3);
+    const contentWidth = Math.min(width, 720) - 68;
+    return Math.floor((contentWidth - 16) / 3);
   }, [width]);
+
+  const firstAvailableSlot = useMemo(
+    () => slots.find(s => s.status === 'available'),
+    [slots],
+  );
 
   return (
     <View style={styles.section}>
       <View style={styles.slotCard}>
+        {/* Next Available Highlight Banner */}
+        {!loading && !error && firstAvailableSlot ? (
+          <View style={[styles.nextAvailable, { marginBottom: 12, justifyContent: 'space-between' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontFamily: 'WorkSans-Regular', fontSize: 12, color: colors.muted }}>
+                Next available: {' '}
+              </Text>
+              <Text style={{ fontFamily: 'Sora-SemiBold', fontSize: 13, color: colors.heading }}>
+                {firstAvailableSlot.label}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+              <Ionicons name="star" size={12} color={colors.ratingGold} />
+              <Text style={{ fontFamily: 'WorkSans-Medium', fontSize: 11, color: colors.primaryDark, marginLeft: 3 }}>
+                Recommended
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {slots.length > 0 && !loading && !error && (
+          <Text style={[styles.sectionTitle, { fontSize: 14, marginBottom: 10 }]}>Other Slots</Text>
+        )}
+
         {loading && (
           <View style={styles.slotState}>
             <ActivityIndicator color={colors.primary} />
@@ -53,6 +83,7 @@ function TimeSlotGrid({
             <Text style={styles.slotStateText}>Please try another date.</Text>
           </View>
         ) : null}
+
         <View style={styles.slotGrid}>
           {slots.map(slot => (
             <TimeSlotButton
@@ -64,6 +95,16 @@ function TimeSlotGrid({
             />
           ))}
         </View>
+
+        {/* Arrival Tip Banner */}
+        {!loading && !error && slots.length > 0 && (
+          <View style={styles.arrivalTipCard}>
+            <Text style={{ fontSize: 14 }}>🌿</Text>
+            <Text style={styles.arrivalTipText}>
+              Arrive 5–10 minutes early for a relaxed experience.
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );

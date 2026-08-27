@@ -276,7 +276,7 @@ const toBackendBookingListItem = (
     asString(pricing?.currency) ??
     null;
 
-    console.log('backendBooking: ', appointmentAt, booking.appointment_at);
+    // console.log('backendBooking: ', appointmentAt, booking.appointment_at);
 
   return {
     id:

@@ -28,7 +28,7 @@ const FeaturedSpaCard = ({ item, onPress, onPressFavorite }) => {
         <View style={styles.priceRow}>
           <View>
             <Text style={styles.priceText}>{item.price}</Text>
-            <Text style={styles.oldPrice}>{item.oldPrice}</Text>
+            {/* <Text style={styles.oldPrice}>{item.oldPrice}</Text> */}
           </View>
           <Pressable onPress={onPress} style={styles.ctaButton}>
             <Text style={styles.ctaText}>Book Now</Text>

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, Text } from 'react-native';
+import React from 'react';
+import { Pressable, Text } from 'react-native';
 
 import { styles } from '../styles';
 import type { BookingDate } from '../types';
@@ -10,26 +10,31 @@ type Props = {
   onPress: (id: string) => void;
 };
 
-function DateTab({ date, selected, onPress }: Props): React.ReactElement {
-  const underlineScale = useRef(new Animated.Value(selected ? 1 : 0)).current;
+const formatDateSubLabel = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return '';
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = Number(parts[2]);
+  const monthIdx = Number(parts[1]) - 1;
+  if (!Number.isFinite(day) || !monthNames[monthIdx]) return '';
+  return `${day} ${monthNames[monthIdx]}`;
+};
 
-  useEffect(() => {
-    Animated.timing(underlineScale, {
-      toValue: selected ? 1 : 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  }, [selected, underlineScale]);
+function DateTab({ date, selected, onPress }: Props): React.ReactElement {
+  const dateFormatted = formatDateSubLabel(date.date);
+  const labelText = dateFormatted ? `📅 ${date.label} • ${dateFormatted}` : date.label;
 
   return (
     <Pressable
       onPress={() => onPress(date.id)}
-      style={styles.dateTab}
+      style={[styles.dateTab, selected && styles.dateTabActive]}
       accessibilityRole="tab"
       accessibilityState={{ selected }}
     >
-      <Text style={[styles.dateTabText, selected && styles.dateTabTextActive]}>{date.label}</Text>
-      <Animated.View style={[styles.dateUnderline, { transform: [{ scaleX: underlineScale }] }]} />
+      <Text style={[styles.dateTabText, selected && styles.dateTabTextActive]} numberOfLines={1}>
+        {labelText}
+      </Text>
     </Pressable>
   );
 }

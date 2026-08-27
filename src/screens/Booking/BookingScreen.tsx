@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import axios from 'axios';
 
 import BookingApi from '../../api/BookingApi';
+import SpaDetailsContent from '../Home/SpaDetailsContent';
 import BookingOptionCard from './components/BookingOptionCard';
 import BookingSchedule from './components/BookingSchedule';
 import GuestSelector from './components/GuestSelector';
@@ -178,35 +179,75 @@ function BookingScreen(): React.ReactElement {
   );
 
   const spaId = route.params.spaId;
+  const serviceIdParam = route.params.serviceId;
   const { spa } = useSpaDetails(spaId);
+
+  const selectedService = useMemo(() => {
+    if (!serviceIdParam || !spa?.services) {
+      return undefined;
+    }
+    return spa.services.find(s => s.id === serviceIdParam);
+  }, [spa?.services, serviceIdParam]);
+
   const startingPrice = useMemo(
     () => getLowestServicePrice(spa?.services),
     [spa?.services],
   );
 
-  const servicePrice = parsePrice(route.params.servicePrice);
+  const resolvedServicePrice = useMemo(() => {
+    if (selectedService) {
+      const priceVal = (selectedService as any).price ?? selectedService.base_price;
+      if (priceVal != null) {
+        return parsePrice(priceVal);
+      }
+    }
+    if (route.params.servicePrice != null) {
+      return parsePrice(route.params.servicePrice);
+    }
+    return parsePrice(startingPrice);
+  }, [selectedService, route.params.servicePrice, startingPrice]);
+
+  const servicePrice = resolvedServicePrice;
   const tokenPrice = parsePrice(bookingOption.price);
   const footerPrice = tokenPrice || servicePrice;
 
-  // console.log("Bookinf data: ",bookingOption);
-
   const service = useMemo<BookingService>(
     () => ({
-      name: route.params.serviceName ?? route.params.spaName ?? 'Spa booking',
-      durationMinutes: route.params.serviceDurationMinutes ?? 60,
-      price: startingPrice,
-      location: route.params.location ?? '',
+      name:
+        selectedService?.name ??
+        route.params.serviceName ??
+        route.params.spaName ??
+        'Spa booking',
+      durationMinutes:
+        selectedService?.duration_minutes ??
+        route.params.serviceDurationMinutes ??
+        60,
+      price: resolvedServicePrice,
+      location: route.params.location ?? spa?.locality_name ?? spa?.city_name ?? '',
       image: route.params.spaImage
         ? { uri: route.params.spaImage }
+        : selectedService?.cover_image_url
+        ? { uri: selectedService.cover_image_url }
+        : spa?.cover_photo_url
+        ? { uri: spa.cover_photo_url }
         : FALLBACK_IMAGE,
+      spaName: spa?.name ?? route.params.spaName ?? 'Tooka Spa',
+      category: selectedService?.category ?? 'Massage',
+      rating: spa?.rating_google ?? '4.8',
     }),
     [
-      route.params.location,
-      route.params.serviceDurationMinutes,
+      selectedService,
       route.params.serviceName,
-      route.params.spaImage,
       route.params.spaName,
-      startingPrice,
+      route.params.serviceDurationMinutes,
+      route.params.location,
+      route.params.spaImage,
+      spa?.name,
+      spa?.locality_name,
+      spa?.city_name,
+      spa?.cover_photo_url,
+      spa?.rating_google,
+      resolvedServicePrice,
     ],
   );
 
@@ -399,7 +440,6 @@ function BookingScreen(): React.ReactElement {
         bookingReference,
         bookingSummary,
       );
-      // console.log('payment contex of initiate payment', paymentContext);
       paymentLogger.debug('Initiate Payment Ready', {
         paymentId: paymentContext.paymentId,
         cashfreeOrderId: paymentContext.cashfreeOrderId,
@@ -454,37 +494,29 @@ function BookingScreen(): React.ReactElement {
             isTablet && styles.tabletContent,
           ]}
         >
-          <HeroHeader service={service} onBack={handleBack} />
-          <GuestSelector
-            value={guestCount}
-            min={1}
-            max={DEFAULT_GUEST_MAX}
-            onChange={setGuestCount}
-          />
-          <BookingSchedule
+          <SpaDetailsContent
+            spa={spa}
+            loading={!spa}
+            error={null}
+            spaId={spaId}
+            serviceId={serviceIdParam}
+            serviceName={route.params.serviceName}
+            onBack={handleBack}
             dates={bookingDates}
             selectedDateId={selectedDateId}
             onSelectDate={handleSelectDate}
-          />
-          <TimeSlotGrid
             slots={timeSlots}
             selectedSlotId={selectedSlotId}
             onSelectSlot={handleSelectSlot}
-            loading={loadingSlots}
-            error={availabilityError}
-          />
-          <BookingOptionCard
-            option={bookingOption}
-            selected
-            onPress={() => undefined}
+            loadingSlots={loadingSlots}
+            availabilityError={availabilityError}
+            bookingOption={bookingOption}
+            onProceedBooking={handleProceed}
+            proceedLoading={submitting}
+            proceedDisabled={!canProceed}
+            footerPrice={footerPrice}
           />
         </ScrollView>
-        <PaymentFooter
-          price={footerPrice}
-          onProceed={handleProceed}
-          disabled={!canProceed}
-          loading={submitting}
-        />
       </View>
     </SafeAreaView>
   );

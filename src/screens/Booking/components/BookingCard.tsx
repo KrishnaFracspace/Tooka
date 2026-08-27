@@ -68,7 +68,7 @@ const C = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type BookingSection = 'upcoming' | 'completed' | 'cancelled';
+export type BookingSection = 'upcoming' | 'completed' | 'cancelled' | 'no-show';
 
 export type BookingCardProps = {
   booking: BackendBookingListItem;
@@ -87,6 +87,7 @@ const StatusBadge = React.memo<StatusBadgeProps>(function StatusBadge({
   if (section === 'upcoming') {
     return null; // Upcoming uses a toggle — not a badge
   }
+  // console.log("section in status badge: ", section);
 
   const isCompleted = section === 'completed';
 

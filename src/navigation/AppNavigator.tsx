@@ -55,6 +55,7 @@ export type RootStackParamList = {
     serviceId?: string;
     serviceName?: string;
     openEnquiry?: boolean;
+    openBooking?: boolean;
   };
   AllBooking: undefined;
   BookingScreen: {
@@ -119,7 +120,7 @@ export type RootStackParamList = {
   RefundPolicy: undefined;
   wellnessArticle?: undefined;
   Login:
-    | { spaId?: string; serviceId?: string; serviceName?: string }
+    | { spaId?: string; serviceId?: string; serviceName?: string; openBooking?: boolean }
     | undefined;
   Otp:
     | {

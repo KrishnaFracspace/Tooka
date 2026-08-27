@@ -1,9 +1,7 @@
 import React from 'react';
-import { Image, Pressable, Text, useWindowDimensions, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { Image, Pressable, Text, View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-import PriceCard from './PriceCard';
 import { colors, styles } from '../styles';
 import type { BookingService } from '../types';
 
@@ -12,51 +10,80 @@ type Props = {
   onBack: () => void;
 };
 
+const formatPrice = (price: number | string): string => {
+  const num = typeof price === 'number' ? price : Number(price);
+  if (Number.isFinite(num)) {
+    return `₹${num.toLocaleString('en-IN')}`;
+  }
+  return `₹${price}`;
+};
+
 function HeroHeader({ service, onBack }: Props): React.ReactElement {
-  const { width } = useWindowDimensions();
-  const curveHeight = Math.max(94, width * 0.18);
-  console.log("Service: ", service);
+  const spaTitle = service.spaName ?? service.location ?? 'Tooka Wellness';
+  const categoryText = service.category ?? 'Massage';
+  const ratingText = service.rating != null ? String(service.rating) : '4.8';
 
   return (
-    <View style={[styles.heroWrap, { marginBottom: 0 }]}>
-      <View style={styles.heroImageWrap}>
-        <Image source={service.image} style={styles.heroImage} resizeMode="cover" />
-        <View style={styles.heroOverlay}>
-          <Pressable
-            onPress={onBack}
-            style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.8 }]}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="chevron-back" size={25} color={colors.white} />
-          </Pressable>
-        </View>
-        <Svg width={width} height={curveHeight} viewBox={`0 0 ${width} ${curveHeight}`} style={styles.curveSvg}>
-          <Path
-            d={`M0 ${curveHeight * 0.38} C ${width * 0.22} ${curveHeight * 1.06}, ${width * 0.55} ${curveHeight * 0.58}, ${width} ${curveHeight * 0.83} L ${width} ${curveHeight} L 0 ${curveHeight} Z`}
-            fill={colors.background}
-          />
-          <Path
-            d={`M0 ${curveHeight * 0.33} C ${width * 0.24} ${curveHeight * 0.95}, ${width * 0.58} ${curveHeight * 0.51}, ${width} ${curveHeight * 0.78}`}
-            stroke={colors.primary}
-            strokeWidth={4}
-            fill="none"
-          />
-        </Svg>
+    <View style={styles.heroWrap}>
+      {/* Top Header Bar */}
+      <View style={styles.topHeaderBar}>
+        <Pressable
+          onPress={onBack}
+          style={({ pressed }) => [styles.headerBackButton, pressed && { opacity: 0.8 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={8}
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.heading} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Book Appointment</Text>
+        <View style={styles.headerRightPlaceholder} />
       </View>
 
-      <View style={styles.serviceCard}>
-        <View>
-          <Text style={styles.serviceTitle}>{service.name}</Text>
-          <View style={styles.durationRow}>
-            {/* <View style={styles.clockCircle}> */}
-              <Ionicons name="location-outline" size={15} color={colors.muted} />
-            {/* </View> */}
-            <Text style={styles.durationText}>{service.location}</Text>
+      {/* Spa & Selected Treatment Confirmation Summary Card */}
+      <View style={styles.summaryCard}>
+        {/* Spa Row */}
+        <View style={styles.spaRow}>
+          <Image source={service.image} style={styles.spaThumbnail} resizeMode="cover" />
+          <View style={styles.spaMetaColumn}>
+            <Text style={styles.spaNameText} numberOfLines={1}>
+              {spaTitle}
+            </Text>
+            <View style={styles.spaLocationRow}>
+              <Ionicons name="location-outline" size={14} color={colors.muted} />
+              <Text style={styles.spaLocationText} numberOfLines={1}>
+                {service.location || 'Hyderabad'}
+              </Text>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={13} color={colors.ratingGold} />
+                <Text style={styles.ratingText}>{ratingText}</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        <PriceCard label="Starting from" value={service.price} />
+        {/* Service Divider */}
+        <View style={styles.serviceDivider} />
+
+        {/* Selected Service Row */}
+        <View style={styles.selectedServiceRow}>
+          <View style={styles.selectedServiceMeta}>
+            <Text style={styles.serviceCardTitle} numberOfLines={1}>
+              {service.name}
+            </Text>
+            <View style={styles.servicePillsRow}>
+              <View style={styles.metaPill}>
+                <Ionicons name="time-outline" size={12} color={colors.body} />
+                <Text style={styles.metaPillText}>{service.durationMinutes} min</Text>
+              </View>
+              <View style={styles.metaPill}>
+                <Ionicons name="sparkles-outline" size={12} color={colors.body} />
+                <Text style={styles.metaPillText}>{categoryText}</Text>
+              </View>
+            </View>
+          </View>
+          <Text style={styles.servicePriceText}>{formatPrice(service.price)}</Text>
+        </View>
       </View>
     </View>
   );

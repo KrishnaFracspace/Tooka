@@ -112,7 +112,7 @@ const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/300';
 const DEFAULT_LOCATION = 'Hyderabad';
 const DEFAULT_RATING = 4.5;
 const DEFAULT_BADGE = 'Premium';
-const DEFAULT_PRICE = '₹1,499';
+const DEFAULT_PRICE = '1,499';
 const DEFAULT_DISTANCE = '1.2 km';
 
 const FEATURED_CARD_WIDTH = 250;
@@ -159,6 +159,7 @@ const HomeScreen: React.FC = () => {
         image: s.image,
         latitude: s.latitude,
         longitude: s.longitude,
+        price: s.starting_price ?? DEFAULT_PRICE,
       })),
     [contextSpas],
   );
@@ -226,7 +227,7 @@ const HomeScreen: React.FC = () => {
           distance: distanceStr,
           rating: String(spa.rating_google ?? DEFAULT_RATING),
           reviews: `${spa.review_count_google ?? 0} reviews`,
-          price: DEFAULT_PRICE,
+          price: `₹ ${spa.starting_price ?? DEFAULT_PRICE}`,
           oldPrice: '',
           badge: DEFAULT_BADGE,
           image: spa.cover_photo_url ?? PLACEHOLDER_IMAGE,
@@ -250,6 +251,7 @@ const HomeScreen: React.FC = () => {
         location?.latitude,
         location?.longitude,
       );
+      // console.log("Mapped Search Results: ", spa, distanceStr);
       return {
         id: spa.id,
         name: spa.name ?? 'Untitled Spa',
@@ -257,7 +259,7 @@ const HomeScreen: React.FC = () => {
         distance: distanceStr,
         rating: spa.rating ?? String(DEFAULT_RATING),
         reviews: '0 reviews',
-        price: DEFAULT_PRICE,
+        price: `₹ ${spa.starting_price ?? DEFAULT_PRICE}`,
         oldPrice: '',
         badge: DEFAULT_BADGE,
         image: spa.image ?? PLACEHOLDER_IMAGE,
@@ -414,8 +416,8 @@ const HomeScreen: React.FC = () => {
           onPressSearch={() => {
             // TODO: Add search action
           }}
-          onPressFilter={() => {
-            // TODO: Add filter screen navigation
+          onPressClear={() => {
+            setSearchQuery('');
           }}
         />
 

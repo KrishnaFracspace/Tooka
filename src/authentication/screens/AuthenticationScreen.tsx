@@ -70,6 +70,7 @@ const AuthenticationScreen: React.FC<AuthenticationScreenProps> = ({ isEmbedded 
   const spaId = isEmbedded ? undefined : route?.params?.spaId;
   const serviceId = isEmbedded ? undefined : route?.params?.serviceId;
   const serviceName = isEmbedded ? undefined : route?.params?.serviceName;
+  const openBooking = isEmbedded ? undefined : route?.params?.openBooking;
 
   // Clean up any pending requests on unmount
   useEffect(() => {
@@ -232,8 +233,7 @@ const AuthenticationScreen: React.FC<AuthenticationScreenProps> = ({ isEmbedded 
           navigation.navigate('SpaDetails', {
             spaId,
             serviceId,
-            serviceName,
-            openEnquiry: true,
+            openBooking: true,
           });
         } else if (!isEmbedded) {
           if (navigation.canGoBack()) {
@@ -249,7 +249,7 @@ const AuthenticationScreen: React.FC<AuthenticationScreenProps> = ({ isEmbedded 
     } finally {
       setLoading(false);
     }
-  }, [phone, otpDigits, isRegistered, name, loading, spaId, serviceId, serviceName, isEmbedded, login, register, navigation]);
+  }, [phone, otpDigits, isRegistered, name, loading, spaId, serviceId, serviceName, openBooking, isEmbedded, login, register, navigation]);
 
   // OTP inputs callbacks
   const handleOtpChange = useCallback((index: number, value: string) => {

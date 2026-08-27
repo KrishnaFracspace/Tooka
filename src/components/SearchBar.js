@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TextInput, StyleSheet, Pressable, Text } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-const SearchBar = ({ value, onChangeText, onPressFilter, onPressSearch }) => {
+const SearchBar = ({ value, onChangeText, onPressClear, onPressSearch }) => {
   return (
     <View style={styles.searchSection}>
       <Pressable onPress={onPressSearch} style={styles.searchLeft}>
@@ -16,10 +16,12 @@ const SearchBar = ({ value, onChangeText, onPressFilter, onPressSearch }) => {
         style={styles.searchInput}
         returnKeyType="search"
       />
-      {/* <View style={{borderLeftWidth:1,height:28,borderColor:'#3c3c3c'}}/>
-      <Pressable onPress={onPressFilter} style={styles.filterButton}>
-        <Ionicons name="options-outline" size={20} color="#3C3C3C" />
-      </Pressable> */}
+      {/* <View style={{borderLeftWidth:1,height:28,borderColor:'#3c3c3c'}}/> */}
+      {value.length > 0 &&
+        <Pressable onPress={onPressClear} style={styles.filterButton}>
+          <Ionicons name="close-outline" size={20} color="#3C3C3C" />
+        </Pressable>
+      }
     </View>
   );
 };

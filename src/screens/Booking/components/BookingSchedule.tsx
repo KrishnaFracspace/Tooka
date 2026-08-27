@@ -1,9 +1,8 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import DateTab from './DateTab';
-import { colors, styles } from '../styles';
+import { styles } from '../styles';
 import type { BookingDate } from '../types';
 
 type Props = {
@@ -16,11 +15,7 @@ function BookingSchedule({ dates, selectedDateId, onSelectDate }: Props): React.
   return (
     <View style={[styles.section, styles.scheduleSection]}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Booking Schedule</Text>
-        <View style={styles.nextAvailable}>
-          <Ionicons name="flash-outline" size={16} color={colors.primary} />
-          <Text style={styles.nextAvailableText}>Next Available</Text>
-        </View>
+        <Text style={styles.sectionTitle}>When would you like to visit?</Text>
       </View>
       <View style={styles.tabsCard}>
         {dates.map((date) => (

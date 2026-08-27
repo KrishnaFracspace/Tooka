@@ -6,66 +6,50 @@ import React, {
   useState,
 } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Image,
-  Linking,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
-  type ListRenderItemInfo,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  type StyleProp,
-  type ViewStyle,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import SpaDetailsSkeleton from '../../components/loaders/SpaDetailsSkeleton';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
-import type { SpaDetails, SpaService, SpaReview } from '../../types/spaDetails';
-import { formatRating, getLowestServicePrice, toSafeNumber } from '../../utils/number';
+import type { SpaDetails } from '../../types/spaDetails';
+import type { BookingDate, BookingOption, TimeSlot } from '../Booking/types';
 
-const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/1000x600';
-const DEFAULT_LOCATION = 'Hyderabad';
-const DEFAULT_RATING = 4.5;
-const DEFAULT_DESCRIPTION = 'Experience luxury wellness and rejuvenation.';
-const DEFAULT_NAME = 'Premium Wellness Spa';
-const HORIZONTAL_SCREEN_PADDING = 15;
+const PLACEHOLDER_IMAGE =
+  'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=1000&q=80';
 
-type BadgeChipProps = {
-  label: string;
-  icon: string;
+const AMENITY_ICON_MAP: Record<string, string> = {
+  steam: 'water-outline',
+  hot_tub: 'flame-outline',
+  local_parking: 'car-outline',
+  wifi: 'wifi-outline',
+  ac_unit: 'snow-outline',
+  favorite: 'heart-outline',
+  king_bed: 'bed-outline',
+  lock: 'lock-closed-outline',
+  shower: 'water-outline',
+  checkroom: 'shirt-outline',
+  parking: 'car-outline',
+  ac: 'snow-outline',
+  sauna: 'flame-outline',
+  pool: 'water-outline',
+  cafe: 'cafe-outline',
+  locker: 'lock-closed-outline',
 };
 
-type InfoTileProps = {
-  iconName: string;
-  title: string;
-  subtitle: string;
-};
-
-type ServiceCardProps = {
-  title: string;
-  duration: string;
-  subtitle: string;
-  price: string;
-  category: string;
-  style?: StyleProp<ViewStyle>;
-};
-
-type ReviewCardProps = {
-  author: string;
-  when: string;
-  rating: string;
-  text: string;
-  width: number;
-  style?: StyleProp<ViewStyle>;
-};
-
-type SpaDetailsContentProps = {
+export type SpaDetailsContentProps = {
   spa: SpaDetails | null;
   loading: boolean;
   error: string | null;
@@ -78,154 +62,50 @@ type SpaDetailsContentProps = {
   onBack?: () => void;
   showBackButton?: boolean;
   showBookBar?: boolean;
+
+  // Integrated Booking Section Props
+  dates?: BookingDate[];
+  selectedDateId?: string;
+  onSelectDate?: (id: string) => void;
+  slots?: TimeSlot[];
+  selectedSlotId?: string;
+  onSelectSlot?: (id: string) => void;
+  loadingSlots?: boolean;
+  availabilityError?: string | null;
+  bookingOption?: BookingOption;
+  optionSelected?: boolean;
+  onProceedBooking?: () => void;
+  proceedLoading?: boolean;
+  proceedDisabled?: boolean;
+  footerPrice?: number;
 };
 
-type SpaServiceItem = SpaService;
-type SpaReviewItem = SpaReview;
-
-const InfoTile: React.FC<InfoTileProps> = ({ iconName, title, subtitle }) => (
-  <View style={styles.infoTile}>
-    <View style={styles.infoIconCircle}>
-      <Ionicons name={iconName} size={16} color="#FFAA26" />
-    </View>
-    <View style={styles.infoTextColumn}>
-      <Text style={styles.infoTitle} numberOfLines={1}>
-        {title}
-      </Text>
-      <Text style={styles.infoSubtitle} numberOfLines={1}>
-        {subtitle}
-      </Text>
-    </View>
-  </View>
-);
-
-const BadgeChip: React.FC<BadgeChipProps> = ({ label, icon }) => (
-  <View style={styles.badgeChip}>
-    <Text style={styles.badgeIcon}>{icon}</Text>
-    <Text style={styles.badgeLabel} numberOfLines={1}>
-      {label}
-    </Text>
-  </View>
-);
-
-const ListSeparator: React.FC = () => <View style={styles.listSeparator} />;
-
-const ServiceCard: React.FC<ServiceCardProps> = ({
-  title,
-  duration,
-  subtitle,
-  price,
-  category,
-  style,
-}) => (
-  <View style={[styles.serviceCard, style]}>
-    <View style={styles.serviceTitleRow}>
-      <Text style={styles.serviceTitle} numberOfLines={2}>
-        {title}
-      </Text>
-      <Text style={styles.servicePrice}>{price}</Text>
-    </View>
-    {subtitle !== '' && (
-      <Text style={styles.serviceSubtitle} numberOfLines={3}>
-        {subtitle}
-      </Text>
-    )}
-    <View style={styles.serviceMetaRow}>
-      <View style={styles.metaPill}>
-        <Ionicons name="time-outline" size={14} color="#9A9A9A" />
-        <Text style={styles.metaText}>{duration}</Text>
-      </View>
-      <View style={styles.metaPill}>
-        <Ionicons name="sparkles-outline" size={14} color="#9A9A9A" />
-        <Text style={styles.metaText} numberOfLines={1}>
-          {category}
-        </Text>
-      </View>
-    </View>
-  </View>
-);
-
-const ReviewCard: React.FC<ReviewCardProps> = ({ author, when, rating, text, width, style }) => {
-  const ratingValue = Math.max(0, Math.min(5, Math.round(toSafeNumber(rating, DEFAULT_RATING))));
-
-  return (
-    <View style={[styles.reviewCard, { width }, style]}>
-      <View style={styles.reviewHeader}>
-        <View style={styles.reviewAvatar}>
-          <Text style={styles.reviewAvatarText}>{author.charAt(0).toUpperCase()}</Text>
-        </View>
-        <Text style={styles.reviewAuthor} numberOfLines={1}>
-          {author}
-        </Text>
-      </View>
-      <View style={styles.reviewRatingRow}>
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Ionicons
-            key={`${author}-star-${index}`}
-            name={index < ratingValue ? 'star' : 'star-outline'}
-            size={15}
-            color="#F8C51D"
-          />
-        ))}
-        <Text style={styles.reviewWhen}>• {when}</Text>
-      </View>
-      <Text style={styles.reviewText} numberOfLines={4}>
-        {text}
-      </Text>
-    </View>
-  );
+const formatDateSubLabel = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return '';
+  const monthNames = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  const day = Number(parts[2]);
+  const monthIdx = Number(parts[1]) - 1;
+  if (!Number.isFinite(day) || !monthNames[monthIdx]) return '';
+  return `${day} ${monthNames[monthIdx]}`;
 };
 
-const mapAmenityChips = (spa: SpaDetails | null) => {
-  const chips: BadgeChipProps[] = [];
-  const profile = spa?.profile;
-
-  if (spa?.is_verified) {
-    chips.push({ icon: '✓', label: 'Verified' });
-  }
-
-  if (profile?.has_steam_room) {
-    chips.push({ icon: '♨', label: 'Steam Room' });
-  }
-
-  if (profile?.has_jacuzzi) {
-    chips.push({ icon: '○', label: 'Jacuzzi' });
-  }
-
-  if (profile?.has_couple_room) {
-    chips.push({ icon: '♡', label: 'Couple Room' });
-  }
-
-  if (profile?.has_sauna) {
-    chips.push({ icon: '△', label: 'Sauna' });
-  }
-
-  if (profile?.has_swimming_pool) {
-    chips.push({ icon: '≈', label: 'Swimming Pool' });
-  }
-
-  return chips;
-};
-
-const formatReviewDate = (dateString: string | null) => {
-  if (!dateString) {
-    return 'Recently';
-  }
-
-  const date = new Date(dateString);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Recently';
-  }
-
-  return date.toLocaleDateString();
-};
-
-const formatServicePrice = (price: string | null, currency: string | null) => {
-  if (!price) {
-    return 'Contact';
-  }
-
+const formatServicePrice = (price: string | null | number, currency: string | null) => {
+  if (!price) return '₹999';
   const numericPrice = Number(price);
   const formattedPrice = Number.isFinite(numericPrice)
     ? numericPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })
@@ -234,18 +114,28 @@ const formatServicePrice = (price: string | null, currency: string | null) => {
   if (!currency || currency.toUpperCase() === 'INR') {
     return `₹${formattedPrice}`;
   }
-
   return `${currency} ${formattedPrice}`;
 };
 
-const getTimingSummary = (spa: SpaDetails | null) => {
-  const firstTiming = spa?.timings?.find((timing) => timing.open && timing.close);
+const formatTimeStr = (rawTime: string | null | undefined): string => {
+  if (!rawTime || typeof rawTime !== 'string') return '';
+  const time = rawTime.trim();
+  if (!time) return '';
 
-  if (!firstTiming?.open || !firstTiming.close) {
-    return 'Hours unavailable';
-  }
+  const parts = time.split(':');
+  if (parts.length < 2) return time;
 
-  return `${firstTiming.open} - ${firstTiming.close}`;
+  let hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+
+  if (isNaN(hours) || isNaN(minutes)) return time;
+
+  const period = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+
+  const minStr = minutes > 0 ? `:${minutes < 10 ? '0' : ''}${minutes}` : '';
+  return `${hours}${minStr}${period}`;
 };
 
 const SpaDetailsContent = memo(function SpaDetailsContentInner({
@@ -254,200 +144,297 @@ const SpaDetailsContent = memo(function SpaDetailsContentInner({
   spaId,
   serviceId,
   serviceName,
-  onBookSpa,
   onBack,
   showBackButton = true,
   showBookBar = true,
+
+  // Integrated Booking props
+  dates = [],
+  selectedDateId = '',
+  onSelectDate,
+  slots = [],
+  selectedSlotId = '',
+  onSelectSlot,
+  loadingSlots = false,
+  availabilityError = null,
+  bookingOption = {
+    id: 'standard',
+    title: 'Standard slot booking',
+    subtitle: '',
+    description:
+      'The booking amount is refundable only as per the applicable Terms & Conditions.',
+    price: 199,
+  },
+  onProceedBooking,
+  proceedLoading = false,
+  proceedDisabled = false,
 }: SpaDetailsContentProps): React.ReactElement {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { width } = useWindowDimensions();
-  const isTablet = width >= 768;
-  const contentWidth = Math.min(width, 1200);
-  const heroCardWidth = Math.max(280, contentWidth - HORIZONTAL_SCREEN_PADDING * 2);
-  const reviewCardWidth = isTablet ? 300 : Math.max(260, width * 0.64);
+  const insets = useSafeAreaInsets();
 
-  const [selectedHeroIndex, setSelectedHeroIndex] = useState(0);
-  const [failedImageUrls, setFailedImageUrls] = useState<Record<string, boolean>>({});
+  const isBookable = spa?.is_bookable ?? true;
+  const spaName = spa?.name ?? 'Spa';
 
-  const [_selectedService, setSelectedService] = useState<{ id?: string; name?: string }>({
-    id: serviceId,
-    name: serviceName,
-  });
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isGalleryModalVisible, setIsGalleryModalVisible] = useState(false);
+  const [showAllTreatments, setShowAllTreatments] = useState(false);
+  const [hoursModalVisible, setHoursModalVisible] = useState(false);
 
-  useEffect(() => {
-    setSelectedService({ id: serviceId, name: serviceName });
-  }, [serviceId, serviceName]);
+  const formattedHours = useMemo(() => {
+    const rawHours = spa?.opening_hours ?? spa?.timings ?? [];
+    const hoursMap = new Map<string, any>();
 
-  const handleImageError = useCallback((url: string) => {
-    setFailedImageUrls((prev) => ({ ...prev, [url]: true }));
-  }, []);
+    if (Array.isArray(rawHours)) {
+      rawHours.forEach((item: any) => {
+        const dayKey = (item?.day_of_week ?? item?.day ?? '').toLowerCase().trim();
+        if (dayKey) {
+          hoursMap.set(dayKey, item);
+        }
+      });
+    }
 
-  const spaName = spa?.name ?? DEFAULT_NAME;
-  const rawRating = spa?.rating_google;
-  const rawReviewCount = spa?.review_count_google;
-  const formattedRating = formatRating(rawRating, DEFAULT_RATING);
-  const reviewCountNum = toSafeNumber(rawReviewCount, 0);
-  const reviewCountText = reviewCountNum > 0 ? reviewCountNum.toLocaleString('en-IN') : null;
+    const DAYS_ORDER = [
+      { key: 'monday', label: 'Monday' },
+      { key: 'tuesday', label: 'Tuesday' },
+      { key: 'wednesday', label: 'Wednesday' },
+      { key: 'thursday', label: 'Thursday' },
+      { key: 'friday', label: 'Friday' },
+      { key: 'saturday', label: 'Saturday' },
+      { key: 'sunday', label: 'Sunday' },
+    ];
+
+    return DAYS_ORDER.map(({ key, label }) => {
+      const item = hoursMap.get(key);
+      if (!item) {
+        return { day: label, timeText: 'Hours unavailable' };
+      }
+
+      if (item.is_open === false) {
+        return { day: label, timeText: 'Closed' };
+      }
+
+      if (item.is_open_24h === true) {
+        return { day: label, timeText: 'Open 24 hours' };
+      }
+
+      const openRaw = item.open_time ?? item.open;
+      const closeRaw = item.close_time ?? item.close;
+
+      const openFmt = formatTimeStr(openRaw);
+      const closeFmt = formatTimeStr(closeRaw);
+
+      if (openFmt && closeFmt) {
+        return { day: label, timeText: `${openFmt} - ${closeFmt}` };
+      }
+
+      return { day: label, timeText: 'Hours unavailable' };
+    });
+  }, [spa?.opening_hours, spa?.timings]);
+
+  const ratingVal = spa?.rating_google != null ? Number(spa.rating_google) : null;
+  const reviewCountVal =
+    spa?.review_count_google != null ? Number(spa.review_count_google) : 0;
+
+  const ratingDisplay = useMemo(() => {
+    if (
+      ratingVal == null ||
+      !Number.isFinite(ratingVal) ||
+      ratingVal === 0 ||
+      reviewCountVal === 0
+    ) {
+      return { text: 'No ratings yet', isRated: false };
+    }
+    const formattedCount =
+      reviewCountVal >= 1000
+        ? `${(reviewCountVal / 1000).toFixed(1)}K`
+        : `${reviewCountVal}`;
+    return { text: `${ratingVal.toFixed(1)} (${formattedCount})`, isRated: true };
+  }, [ratingVal, reviewCountVal]);
 
   const spaLocation = useMemo(() => {
-    if (spa?.locality_name && spa?.city_name) {
-      return `${spa.locality_name}, ${spa.city_name}`;
-    }
-    return spa?.locality_name ?? spa?.city_name ?? DEFAULT_LOCATION;
-  }, [spa?.locality_name, spa?.city_name]);
-
-  const spaAddress = useMemo(() => {
-    const parts: string[] = [];
-    if (spa?.address_line1) parts.push(spa.address_line1);
-    if (spa?.address_line2) parts.push(spa.address_line2);
-    if (spa?.locality_name) parts.push(spa.locality_name);
-    if (spa?.city_name) parts.push(spa.city_name);
-    return parts.length ? parts.join(', ') : DEFAULT_LOCATION;
-  }, [spa?.address_line1, spa?.address_line2, spa?.locality_name, spa?.city_name]);
-
-  const spaDescription = spa?.tagline ?? spa?.description ?? spa?.editorial_summary ?? DEFAULT_DESCRIPTION;
-  const amenityChips = useMemo(() => mapAmenityChips(spa), [spa]);
+    const parts = [spa?.address_line1, spa?.locality_name, spa?.city_name]
+      .map((s) => (typeof s === 'string' ? s.trim() : ''))
+      .filter((s) => s.length > 0);
+    return parts.length > 0 ? parts.join(', ') : 'Location unavailable';
+  }, [spa?.address_line1, spa?.locality_name, spa?.city_name]);
 
   const services = useMemo(() => spa?.services ?? [], [spa?.services]);
-  const reviews = useMemo(() => spa?.reviews ?? [], [spa?.reviews]);
-  const featuredServices = useMemo(() => services.slice(0, 3), [services]);
-  const startingPrice = useMemo(() => getLowestServicePrice(services), [services]);
-  const openingSummary = useMemo(() => getTimingSummary(spa), [spa]);
 
-  const heroMediaItems = useMemo(() => {
-    const items: { id: string; url: string }[] = [];
-    const seenUrls = new Set<string>();
+  const visibleServices = useMemo(() => {
+    if (showAllTreatments || services.length <= 3) {
+      return services;
+    }
+    return services.slice(0, 3);
+  }, [services, showAllTreatments]);
 
+  // Gallery items strictly ordered: 1. cover_photo_url, 2. media[].url, 3. gallery[].image_url
+  const mediaItems = useMemo(() => {
+    const urls: string[] = [];
+
+    // 1. spa.cover_photo_url if available
+    if (
+      spa?.cover_photo_url &&
+      typeof spa.cover_photo_url === 'string' &&
+      spa.cover_photo_url.trim()
+    ) {
+      urls.push(spa.cover_photo_url.trim());
+    }
+
+    // 2. spa.media[].url
     if (Array.isArray(spa?.media) && spa.media.length > 0) {
-      const sortedMedia = [...spa.media].sort((a, b) => {
-        const orderA = typeof a.display_order === 'number' ? a.display_order : Number.MAX_SAFE_INTEGER;
-        const orderB = typeof b.display_order === 'number' ? b.display_order : Number.MAX_SAFE_INTEGER;
-        return orderA - orderB;
-      });
-
-      sortedMedia.forEach((m, idx) => {
-        if (!m) return;
-        const candidateUrl = [m.url, m.url_medium, m.url_thumbnail].find(
-          (u): u is string => typeof u === 'string' && u.trim().length > 0
-        );
-
-        if (candidateUrl) {
-          const trimmed = candidateUrl.trim();
-          if (!seenUrls.has(trimmed) && !failedImageUrls[trimmed]) {
-            seenUrls.add(trimmed);
-            items.push({
-              id: m.id ? String(m.id) : `media-${idx}`,
-              url: trimmed,
-            });
-          }
+      spa.media.forEach((m) => {
+        if (
+          m?.url &&
+          typeof m.url === 'string' &&
+          m.url.trim() &&
+          !urls.includes(m.url.trim())
+        ) {
+          urls.push(m.url.trim());
         }
       });
     }
 
-    if (items.length > 0) {
-      return items;
-    }
-
-    if (typeof spa?.cover_photo_url === 'string' && spa.cover_photo_url.trim().length > 0) {
-      const trimmed = spa.cover_photo_url.trim();
-      if (!failedImageUrls[trimmed]) {
-        return [{ id: 'cover-photo', url: trimmed }];
-      }
-    }
-
+    // 3. spa.gallery[].image_url
     if (Array.isArray(spa?.gallery) && spa.gallery.length > 0) {
-      spa.gallery.forEach((g, idx) => {
-        if (typeof g?.image_url === 'string' && g.image_url.trim().length > 0) {
-          const trimmed = g.image_url.trim();
-          if (!seenUrls.has(trimmed) && !failedImageUrls[trimmed]) {
-            seenUrls.add(trimmed);
-            items.push({
-              id: g.id ? String(g.id) : `gallery-${idx}`,
-              url: trimmed,
-            });
-          }
+      spa.gallery.forEach((g) => {
+        if (
+          g?.image_url &&
+          typeof g.image_url === 'string' &&
+          g.image_url.trim() &&
+          !urls.includes(g.image_url.trim())
+        ) {
+          urls.push(g.image_url.trim());
         }
       });
     }
 
-    if (items.length > 0) {
-      return items;
+    if (urls.length === 0) {
+      urls.push(PLACEHOLDER_IMAGE);
     }
+    return urls;
+  }, [spa?.cover_photo_url, spa?.media, spa?.gallery]);
 
-    return [{ id: 'placeholder-image', url: PLACEHOLDER_IMAGE }];
-  }, [spa?.media, spa?.cover_photo_url, spa?.gallery, failedImageUrls]);
+  // Safety check for index out of bounds
+  useEffect(() => {
+    if (selectedImageIndex >= mediaItems.length) {
+      setSelectedImageIndex(0);
+    }
+  }, [mediaItems.length, selectedImageIndex]);
 
-  const handleGetDirections = useCallback(async () => {
-    const url = spa?.google_maps_url;
+  const currentImageIndex =
+    selectedImageIndex < mediaItems.length ? selectedImageIndex : 0;
+  const currentHeroUrl = mediaItems[currentImageIndex] ?? PLACEHOLDER_IMAGE;
 
-    if (!url) {
-      console.warn('Google Maps URL is missing');
+  // Visible thumbnails (indexes 1, 2, 3) with actual index references
+  const visibleThumbnails = useMemo(
+    () =>
+      mediaItems.slice(1, 4).map((url, idx) => ({
+        url,
+        actualIndex: idx + 1,
+      })),
+    [mediaItems],
+  );
+
+  const remainingCount = Math.max(0, mediaItems.length - 4);
+
+  // Auto-scroll timer (every 3.5s)
+  useEffect(() => {
+    if (mediaItems.length <= 1 || isGalleryModalVisible) {
       return;
     }
 
-    try {
-      const supported = await Linking.canOpenURL(url);
+    const interval = setInterval(() => {
+      setSelectedImageIndex((prevIndex) => (prevIndex + 1) % mediaItems.length);
+    }, 3500);
 
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        console.warn('Cannot open URL:', url);
-      }
-    } catch (err) {
-      console.error('Failed to open Google Maps URL', err);
+    return () => clearInterval(interval);
+  }, [mediaItems.length, isGalleryModalVisible, selectedImageIndex]);
+
+  const handleSelectThumbnail = useCallback((actualIndex: number) => {
+    setSelectedImageIndex(actualIndex);
+  }, []);
+
+  const handleOpenGalleryModal = useCallback(() => {
+    setIsGalleryModalVisible(true);
+  }, []);
+
+  const handleCloseGalleryModal = useCallback(() => {
+    setIsGalleryModalVisible(false);
+  }, []);
+
+  const handleSelectModalImage = useCallback((index: number) => {
+    setSelectedImageIndex(index);
+    setIsGalleryModalVisible(false);
+  }, []);
+
+  // Trust Badges
+  const trustBadges = useMemo(() => {
+    const badges = [];
+    if (spa?.is_verified) {
+      badges.push({ id: 'verified', icon: 'checkmark-circle-outline', label: 'Verified Spa' });
     }
-  }, [spa?.google_maps_url]);
-
-  const handleHeroScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (heroCardWidth + 12));
-      setSelectedHeroIndex(Math.max(0, Math.min(nextIndex, heroMediaItems.length - 1)));
-    },
-    [heroCardWidth, heroMediaItems.length],
-  );
-
-  const handlePressBookNow = useCallback(() => {
-    if (onBookSpa) {
-      onBookSpa(spaId);
+    if (spa?.is_claimed) {
+      badges.push({ id: 'claimed', icon: 'shield-checkmark-outline', label: 'Claimed Spa' });
     }
-  }, [onBookSpa, spaId]);
+    if (spa?.is_featured) {
+      badges.push({ id: 'featured', icon: 'flash-outline', label: 'Featured' });
+    }
+    return badges;
+  }, [spa?.is_verified, spa?.is_claimed, spa?.is_featured]);
 
-  const renderServiceItem = useCallback(
-    ({ item, index }: ListRenderItemInfo<SpaServiceItem>) => {
-      const durationText = item.duration_minutes != null ? `${item.duration_minutes} min` : 'N/A';
-      const priceText = formatServicePrice(item.base_price, item.currency);
-      const subtitleText = item.short_description ?? item.description ?? '';
-      const categoryText = item.category ?? 'Wellness';
+  // Dynamic Amenities List
+  const amenitiesList = useMemo(() => {
+    if (!Array.isArray(spa?.amenities) || spa.amenities.length === 0) {
+      return [];
+    }
 
-      return (
-        <ServiceCard
-          key={item.id}
-          title={item.name}
-          duration={durationText}
-          subtitle={subtitleText}
-          price={priceText}
-          category={categoryText}
-          style={index > 0 ? styles.serviceCardSpacing : undefined}
-        />
-      );
-    },
-    [],
+    return spa.amenities
+      .filter((a) => a && (a.name || (a as any).label))
+      .map((a) => {
+        const label = a.name ?? (a as any).label;
+        const rawIcon = ((a as any).icon ?? '').toLowerCase();
+        const icon = AMENITY_ICON_MAP[rawIcon] ?? 'sparkles-outline';
+        return {
+          id: a.id ?? label,
+          label,
+          icon,
+        };
+      });
+  }, [spa?.amenities]);
+
+  // Open/Closed Status
+  const isOpenNow = spa?.is_open_now ?? true;
+
+  // Booking Fee Amount
+  const bookingFeeAmount = useMemo(() => {
+    const feeStr = spa?.booking_fee ?? spa?.minimum_booking_amount ?? bookingOption.price;
+    const numericFee = Number(feeStr);
+    return Number.isFinite(numericFee) ? Math.round(numericFee) : 199;
+  }, [spa?.booking_fee, spa?.minimum_booking_amount, bookingOption.price]);
+
+  const slotWidth = useMemo(() => {
+    const contentWidth = Math.min(width, 720) - 68;
+    return Math.floor((contentWidth - 16) / 3);
+  }, [width]);
+
+  const selectedSlot = useMemo(
+    () => slots.find((s) => s.id === selectedSlotId && s.status === 'available'),
+    [slots, selectedSlotId],
   );
 
-  const renderReviewItem = useCallback(
-    ({ item, index }: ListRenderItemInfo<SpaReviewItem>) => (
-      <ReviewCard
-        key={item.id}
-        author={item.reviewer_name ?? 'Guest'}
-        when={formatReviewDate(item.created_at)}
-        rating={formatRating(item.rating, DEFAULT_RATING)}
-        text={item.comment ?? 'No comment available.'}
-        width={reviewCardWidth}
-        style={index > 0 ? styles.reviewCardSpacing : undefined}
-      />
-    ),
-    [reviewCardWidth],
+  const firstAvailableSlot = useMemo(
+    () => slots.find((s) => s.status === 'available'),
+    [slots],
   );
+
+  const selectedTimeLabel = selectedSlot?.label;
+  let ctaLabel = 'Continue to Payment ➔';
+  if (!isBookable) {
+    ctaLabel = 'Booking unavailable';
+  } else if (selectedTimeLabel) {
+    ctaLabel = `Continue with ${selectedTimeLabel} ➔`;
+  }
 
   if (loading && spa === null) {
     return <SpaDetailsSkeleton />;
@@ -458,775 +445,1095 @@ const SpaDetailsContent = memo(function SpaDetailsContentInner({
   }
 
   return (
-    <View style={styles.contentRoot}>
-      <View style={styles.heroShell}>
-        <FlatList
-          data={heroMediaItems}
-          horizontal
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={heroCardWidth + 12}
-          decelerationRate="fast"
-          bounces={false}
-          onMomentumScrollEnd={handleHeroScroll}
-          contentContainerStyle={styles.heroList}
-          renderItem={({ item }) => (
-            <Image
-              source={{ uri: item.url }}
-              style={[styles.heroImage, { width: heroCardWidth }]}
-              resizeMode="cover"
-              onError={() => handleImageError(item.url)}
-              accessibilityIgnoresInvertColors
-            />
-          )}
-        />
+    <View style={styles.root}>
+      {/* 1. HERO GALLERY */}
+      <View style={styles.heroWrap}>
+        <Image source={{ uri: currentHeroUrl }} style={styles.heroImage} resizeMode="cover" />
 
-        {showBackButton && (
-          <Pressable
-            style={styles.backButton}
-            onPress={onBack ?? (() => navigation.goBack())}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-          </Pressable>
-        )}
-
-        {heroMediaItems.length > 1 && (
-          <View style={styles.pagination}>
-            {heroMediaItems.slice(0, 5).map((item, index) => (
-              <View
-                key={`${item.id}-dot-${index}`}
-                style={[
-                  styles.paginationDot,
-                  index === Math.min(selectedHeroIndex, heroMediaItems.length - 1) && styles.paginationDotActive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.headingColumn}>
-        {(rawRating != null || rawReviewCount != null) && (
-          <View
-            style={styles.ratingRow}
-            accessible
-            accessibilityLabel={`${formattedRating} rating${reviewCountText ? `, ${reviewCountText} reviews` : ''}`}
-          >
-            <Ionicons name="star" size={17} color="#E8C520" />
-            <Text style={styles.ratingText}>
-              {formattedRating}
-              {reviewCountText ? <Text style={styles.ratingCount}> ({reviewCountText})</Text> : null}
-            </Text>
-          </View>
-        )}
-
-        <Text style={styles.spaName} numberOfLines={2} ellipsizeMode="tail">
-          {spaName}
-        </Text>
-
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={17} color="#6C6258" />
-          <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
-            {spaLocation}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={styles.descriptionText} numberOfLines={3}>
-        {spaDescription}
-      </Text>
-
-      <View style={styles.infoGrid}>
-        <InfoTile iconName="time-outline" title="Open" subtitle={openingSummary} />
-        <InfoTile
-          iconName="shield-checkmark-outline"
-          title={spa.is_verified ? 'Trusted Partner' : 'Partner Spa'}
-          subtitle={spa.is_verified ? 'Verified spa' : 'Wellness spa'}
-        />
-      </View>
-
-      {amenityChips.length > 0 && (
-        <View style={styles.amenitiesList}>
-          {amenityChips.map((item) => (
-            <BadgeChip key={item.label} icon={item.icon} label={item.label} />
-          ))}
-        </View>
-      )}
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Featured Treatments</Text>
-      </View>
-
-      {featuredServices.length === 0 ? (
-        <Text style={styles.emptyText}>No services available.</Text>
-      ) : (
-        <FlatList<SpaServiceItem>
-          data={featuredServices}
-          keyExtractor={(item) => item.id}
-          renderItem={renderServiceItem}
-          scrollEnabled={false}
-          ItemSeparatorComponent={ListSeparator}
-          removeClippedSubviews
-        />
-      )}
-
-      {/* {services.length > 3 && (
-        <Pressable
-          style={styles.viewAllTreatmentsButton}
-          accessibilityRole="button"
-          accessibilityLabel="View all treatments"
-        >
-          <Text style={styles.viewAllTreatmentsText}>View all treatments</Text>
-          <Ionicons name="chevron-forward" size={18} color="#2D2B28" />
-        </Pressable>
-      )} */}
-
-      <View style={[styles.sectionHeader, styles.reviewSectionHeader]}>
-        <Text style={styles.sectionTitle}>What Guests Say</Text>
-      </View>
-
-      {reviews.length === 0 ? (
-        <Text style={styles.emptyText}>No reviews available yet.</Text>
-      ) : (
-        <FlatList<SpaReviewItem>
-          data={reviews}
-          horizontal
-          keyExtractor={(item) => item.id}
-          renderItem={renderReviewItem}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.reviewList}
-          removeClippedSubviews
-        />
-      )}
-
-      {/* <Text style={[styles.sectionTitle, styles.standaloneSectionTitle]}>Exclusive Offers</Text>
-      <Pressable
-        style={styles.offerCard}
-        onPress={() => {}}
-        accessibilityRole="button"
-        accessibilityLabel={`${offer.title} ${offer.subtitle}`}
-      >
-        <Image
-          source={heroImage}
-          style={styles.offerImage}
-          resizeMode="cover"
-          accessibilityIgnoresInvertColors
-        />
-        <View style={styles.offerOverlay} />
-        <View style={styles.offerContent}>
-          <Text style={styles.offerLabel}>{offer.label}</Text>
-          <Text style={styles.offerTitle}>{offer.title}</Text>
-          <Text style={styles.offerSubtitle}>{offer.subtitle}</Text>
-        </View>
-        <View style={styles.offerButton}>
-          <Text style={styles.offerButtonText}>{offer.cta}</Text>
-        </View>
-      </Pressable> */}
-
-      <Text style={[styles.sectionTitle, styles.standaloneSectionTitle]}>Location</Text>
-      <View style={styles.locationCard}>
-        {/* <View style={styles.mapPreview}>
-          <View style={[styles.mapRoad, styles.mapRoadOne]} />
-          <View style={[styles.mapRoad, styles.mapRoadTwo]} />
-          <View style={[styles.mapRoad, styles.mapRoadThree]} />
-          <Text style={[styles.mapLabel, styles.mapLabelTop]}>Shri Peddamma Talli Temple</Text>
-          <Text style={[styles.mapLabel, styles.mapLabelBottom]}>Malkam Cheruvu Park</Text>
-          <View style={styles.mapMarker}>
-            <Ionicons name="location-sharp" size={24} color="#FFFFFF" />
-          </View>
-        </View> */}
-        <View style={styles.locationAddressRow}>
-          <Text style={styles.locationAddress} numberOfLines={3}>
-            {spaAddress}
-          </Text>
-          {spa.google_maps_url &&
+        {/* Header Overlay Buttons */}
+        <View style={[styles.heroOverlayHeader, { paddingTop: Math.max(insets.top, 12) }]}>
+          {showBackButton && (
             <Pressable
-              style={styles.directionButton}
-              onPress={handleGetDirections}
-              accessibilityRole="button"
-              accessibilityLabel="Get directions"
+              style={styles.heroBackButton}
+              onPress={onBack ?? (() => navigation.goBack())}
+              hitSlop={10}
             >
-              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
             </Pressable>
-          }
+          )}
+          <Pressable style={styles.favoriteButton} hitSlop={10}>
+            <Ionicons name="heart-outline" size={22} color="#FFFFFF" />
+          </Pressable>
+        </View>
+
+        {/* Bottom Gallery Thumbnail Overlay */}
+        <View style={styles.galleryStrip}>
+          {visibleThumbnails.map((item) => (
+            <Pressable
+              key={`thumb-${item.actualIndex}`}
+              onPress={() => handleSelectThumbnail(item.actualIndex)}
+              style={[
+                styles.galleryThumb,
+                currentImageIndex === item.actualIndex && styles.galleryThumbSelected,
+              ]}
+            >
+              <Image source={{ uri: item.url }} style={styles.galleryThumbImg} resizeMode="cover" />
+            </Pressable>
+          ))}
+          {remainingCount > 0 ? (
+            <Pressable
+              onPress={handleOpenGalleryModal}
+              style={[styles.galleryThumb, styles.galleryExtraThumb]}
+            >
+              <Image
+                source={{ uri: mediaItems[4] ?? currentHeroUrl }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+              <View style={styles.galleryExtraOverlay}>
+                <Text style={styles.galleryExtraText}>+{remainingCount}</Text>
+              </View>
+            </Pressable>
+          ) : null}
         </View>
       </View>
 
-      
-
-      {showBookBar && (
-        <View style={styles.bookNowRow}>
-          <View style={styles.bookNowPriceColumn}>
-            <Text style={styles.fromText}>Starting from</Text>
-            <Text style={styles.bookNowPrice}>{startingPrice}</Text>
+      <View style={styles.bodyContainer}>
+        {/* 2. SPA INFORMATION HEADER */}
+        <View style={styles.spaHeaderBlock}>
+          <View style={styles.spaTitleRow}>
+            <Text style={styles.spaName}>{spaName}</Text>
+            <View style={styles.ratingBadge}>
+              <Ionicons
+                name="star"
+                size={14}
+                color={ratingDisplay.isRated ? '#F8C51D' : '#9A9084'}
+              />
+              <Text style={styles.ratingText}>{ratingDisplay.text}</Text>
+            </View>
           </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.bookNowAction,
-              pressed && styles.bookNowActionPressed,
-              !spa.is_bookable && styles.bookNowActionDisabled,
-            ]}
-            onPress={handlePressBookNow}
-            disabled={!spa.is_bookable}
-            accessibilityRole="button"
-            accessibilityLabel="Book now"
+
+          <View style={styles.timingRow}>
+            <View style={[styles.openNowBadge, !isOpenNow && styles.closedBadge]}>
+              <Text style={[styles.openNowText, !isOpenNow && styles.closedText]}>
+                {isOpenNow ? 'Open now' : 'Closed now'}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={() => setHoursModalVisible(true)}
+              hitSlop={10}
+              style={{flexDirection:'row', alignItems:'center', gap:0}}
+            >
+              <Text style={{fontFamily:'WorkSans-Medium', fontSize:12,color:'#FFB02E'}}>View Hours </Text>
+              <Ionicons
+                name={"chevron-forward-outline"}
+                size={12}
+                color="#FFAA26"
+              />
+            </Pressable>
+          </View>
+
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={15} color="#6C6258" />
+            <Text style={styles.locationText}>{spaLocation}</Text>
+          </View>
+        </View>
+
+        {/* 3. TRUST BADGES & AMENITIES IN ONE SEQUENTIAL HORIZONTAL ROW */}
+        {(trustBadges.length > 0 || amenitiesList.length > 0) && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.trustChipsRow}
           >
-            <Text style={styles.bookNowActionText}>Book Now</Text>
+            {trustBadges.map((b) => (
+              <View key={b.id} style={styles.trustChip}>
+                <Ionicons name={b.icon} size={15} color="#2D2B28" />
+                <Text style={styles.trustChipText}>{b.label}</Text>
+              </View>
+            ))}
+
+            {amenitiesList.map((a) => (
+              <View key={`amenity-${a.id}`} style={styles.trustChip}>
+                <Ionicons name={a.icon} size={15} color="#6C6258" />
+                <Text style={styles.trustChipText}>{a.label}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* 4. NON-INTERACTIVE TREATMENTS DISPLAY */}
+        {services.length > 0 && (
+          <>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Choose your treatment</Text>
+            </View>
+
+            <View style={styles.handpickedBanner}>
+              <View style={styles.handpickedCopy}>
+                <View style={styles.lotusCircle}>
+                  <Ionicons name="sparkles" size={16} color="#FFAA26" />
+                </View>
+                <Text style={styles.handpickedText}>
+                  Handpicked treatments for your mind, body & soul.
+                </Text>
+              </View>
+              <Image source={{ uri: mediaItems[0] }} style={styles.handpickedImage} resizeMode="cover" />
+            </View>
+
+            <View style={styles.servicesList}>
+              {visibleServices.map((item) => {
+                const priceText = formatServicePrice(item.base_price, item.currency);
+                const durationText =
+                  item.duration_minutes != null ? `${item.duration_minutes} min` : '60 min';
+                const categoryText = item.category ?? 'Wellness';
+
+                return (
+                  <View key={item.id} style={styles.treatmentCard}>
+                    <View style={styles.treatmentTopRow}>
+                      <Text style={styles.treatmentTitle}>{item.name}</Text>
+                      <Text style={styles.treatmentPrice}>{priceText}</Text>
+                    </View>
+                    <View style={styles.treatmentMetaRow}>
+                      <View style={styles.metaItem}>
+                        <Ionicons name="time-outline" size={13} color="#FFB02E" />
+                        <Text style={styles.metaItemText}>{durationText}</Text>
+                      </View>
+                      <View style={styles.metaItem}>
+                        <Ionicons name="sparkles-outline" size={13} color="#FFB02E" />
+                        <Text style={styles.metaItemText}>{categoryText}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
+            {services.length > 3 && (
+              <Pressable
+                onPress={() => setShowAllTreatments((prev) => !prev)}
+                style={styles.toggleTreatmentsBtn}
+                hitSlop={8}
+              >
+                <Text style={styles.toggleTreatmentsText}>
+                  {showAllTreatments ? 'Show less' : 'View all treatments'}
+                </Text>
+                <Ionicons
+                  name={showAllTreatments ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color="#FFAA26"
+                />
+              </Pressable>
+            )}
+          </>
+        )}
+
+        {/* 5. "WHEN WOULD YOU LIKE TO VISIT?" SECTION */}
+        {dates.length > 0 && (
+          <View style={styles.bookingSectionBlock}>
+            <Text style={styles.sectionTitle}>When would you like to visit?</Text>
+
+            <View style={{backgroundColor: '#FFF', padding: 15, borderRadius: 8, marginTop: 15}}>
+            {/* Date Selector Tabs */}
+            <View style={styles.dateTabsRow}>
+              {dates.map((d) => {
+                const isSelectedDate = d.id === selectedDateId;
+                const dateFormatted = formatDateSubLabel(d.date);
+                const labelText = dateFormatted ? `${d.label} • ${dateFormatted}` : d.label;
+
+                return (
+                  <Pressable
+                    key={d.id}
+                    onPress={() => onSelectDate?.(d.id)}
+                    style={[styles.dateTab, isSelectedDate && styles.dateTabActive]}
+                  >
+                    <Text style={[styles.dateTabText, isSelectedDate && styles.dateTabTextActive]}>
+                      {labelText}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Next Available Banner */}
+            {!loadingSlots && !availabilityError && firstAvailableSlot && (
+              <View style={styles.nextAvailableBanner}>
+                <Text style={styles.nextAvailableText}>
+                  Next available:{' '}
+                  <Text style={{ fontFamily: 'Sora-SemiBold', color: '#2D2B28' }}>
+                    {firstAvailableSlot.label}
+                  </Text>
+                </Text>
+                <View style={styles.recommendedPill}>
+                  <Ionicons name="star" size={12} color="#F8C51D" />
+                  <Text style={styles.recommendedText}>Recommended</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Time Slot Grid */}
+            <Text style={styles.otherSlotsTitle}>Other Slots</Text>
+
+            {loadingSlots && (
+              <View style={styles.slotStateBox}>
+                <ActivityIndicator color="#FFAA26" />
+                <Text style={styles.slotStateText}>Checking availability...</Text>
+              </View>
+            )}
+
+            {!loadingSlots && availabilityError && (
+              <View style={styles.slotStateBox}>
+                <Text style={styles.slotStateTitle}>Unable to load slots</Text>
+                <Text style={styles.slotStateText}>{availabilityError}</Text>
+              </View>
+            )}
+
+            {!loadingSlots && !availabilityError && slots.length === 0 && (
+              <View style={styles.slotStateBox}>
+                <Text style={styles.slotStateTitle}>No slots available</Text>
+                <Text style={styles.slotStateText}>Please select another date.</Text>
+              </View>
+            )}
+
+            {!loadingSlots && !availabilityError && slots.length > 0 && (
+              <View style={styles.slotGridRow}>
+                {slots.map((s) => {
+                  const isSelectedSlot = s.id === selectedSlotId;
+                  const isDisabled = s.status !== 'available';
+
+                  return (
+                    <Pressable
+                      key={s.id}
+                      disabled={isDisabled}
+                      onPress={() => onSelectSlot?.(s.id)}
+                      style={[
+                        styles.slotBtn,
+                        { width: slotWidth },
+                        isSelectedSlot && styles.slotBtnSelected,
+                        isDisabled && styles.slotBtnDisabled,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.slotBtnText,
+                          isSelectedSlot && styles.slotBtnTextSelected,
+                          isDisabled && styles.slotBtnTextDisabled,
+                        ]}
+                      >
+                        {s.label}
+                      </Text>
+                      {isSelectedSlot && (
+                        <View style={styles.selectedSlotBadge}>
+                          <Text style={styles.selectedSlotBadgeText}>SELECTED</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Arrival Tip Banner */}
+            <View style={styles.arrivalTipBanner}>
+              <Text style={{ fontSize: 14 }}>🌿</Text>
+              <Text style={styles.arrivalTipText}>
+                Arrive 5–10 minutes early for a relaxed experience.
+              </Text>
+            </View>
+            </View>
+
+            {/* 6. BOOKING OPTION CARD */}
+            <View style={styles.optionCard}>
+              <View style={styles.priceBubble}>
+                <Text style={styles.priceBubbleText}>₹{bookingFeeAmount}</Text>
+              </View>
+              <View style={styles.optionTopRow}>
+                <View style={styles.radioOuter}>
+                  <View style={styles.radioInner} />
+                </View>
+                <View style={styles.optionCopy}>
+                  <Text style={styles.optionTitle}>{bookingOption.title}</Text>
+                  <Text style={styles.optionDescription}>{bookingOption.description}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* 7. STICKY BOTTOM CTA & IS_BOOKABLE NOTICE */}
+      {showBookBar && (
+        <View style={[styles.bottomStickyBar]}>
+          {!isBookable && (
+            <View style={styles.unbookableNotice}>
+              <Ionicons name="information-circle-outline" size={16} color="#D32F2F" />
+              <Text style={styles.unbookableNoticeText}>
+                Booking isn't available yet. Please check back soon.
+              </Text>
+            </View>
+          )}
+
+          <Pressable
+            disabled={!isBookable || proceedDisabled || proceedLoading}
+            onPress={onProceedBooking}
+            style={({ pressed }) => [
+              styles.ctaButton,
+              pressed && styles.ctaButtonPressed,
+              (!isBookable || proceedDisabled || proceedLoading) && styles.ctaButtonDisabled,
+            ]}
+          >
+            {proceedLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.ctaButtonText}>{ctaLabel}</Text>
+            )}
           </Pressable>
         </View>
       )}
 
+      {/* 8. EXPANDED FULL GALLERY MODAL VIEWER */}
+      <Modal
+        visible={isGalleryModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={handleCloseGalleryModal}
+      >
+        <SafeAreaView style={styles.modalRoot}>
+          <View style={styles.modalHeader}>
+            <Pressable onPress={handleCloseGalleryModal} style={styles.modalCloseBtn} hitSlop={10}>
+              <Ionicons name="close" size={26} color="#FFFFFF" />
+            </Pressable>
+            <Text style={styles.modalTitle}>
+              Gallery ({currentImageIndex + 1}/{mediaItems.length})
+            </Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          <FlatList
+            data={mediaItems}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(_, index) => `modal-img-${index}`}
+            initialScrollIndex={currentImageIndex}
+            getItemLayout={(_, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
+            renderItem={({ item, index }) => (
+              <Pressable
+                style={[styles.modalSlide, { width }]}
+                onPress={() => handleSelectModalImage(index)}
+              >
+                <Image source={{ uri: item }} style={styles.modalImage} resizeMode="contain" />
+                <View style={styles.modalTapHint}>
+                  <Text style={styles.modalTapHintText}>Tap image to select for hero</Text>
+                </View>
+              </Pressable>
+            )}
+          />
+        </SafeAreaView>
+      </Modal>
+
+      {/* 9. BUSINESS HOURS MODAL */}
+      <Modal
+        visible={hoursModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setHoursModalVisible(false)}
+      >
+        <View style={styles.hoursModalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setHoursModalVisible(false)}
+          />
+
+          <View style={styles.hoursModalCard}>
+            <View style={styles.hoursHeaderRow}>
+              <View style={styles.clockCircle}>
+                <Ionicons name="time-outline" size={30} color="#4A6585" />
+              </View>
+              <View style={styles.hoursHeaderTexts}>
+                <Text style={styles.hoursTitle}>Business Hours</Text>
+                <Text style={styles.hoursSubtitle}>
+                  Plan your visit around the spa’s schedule.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.hoursDivider} />
+
+            <View style={styles.hoursRowsList}>
+              {formattedHours.map((row, idx) => (
+                <View key={`hours-${idx}`} style={styles.hoursRow}>
+                  <Text style={styles.hoursDayLabel}>{row.day}</Text>
+                  <Text style={styles.hoursTimeValue}>{row.timeText}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  contentRoot: {
+  root: {
     flex: 1,
-    backgroundColor: '#FBF3EA',
-    paddingBottom: 0,
+    backgroundColor: '#FFF7EE',
   },
-  contentFallback: {
-    paddingVertical: 56,
-    paddingHorizontal: 24,
-    backgroundColor: '#FBF3EA',
-  },
-  heroShell: {
+  heroWrap: {
     position: 'relative',
-    marginTop: 12,
-    marginBottom: 26,
-  },
-  heroList: {
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    columnGap: 12,
+    width: '100%',
+    height: 330,
+    backgroundColor: '#E5DCD3',
   },
   heroImage: {
-    height: 322,
-    borderRadius: 8,
-    backgroundColor: '#E4D8C8',
+    width: '100%',
+    height: '100%',
   },
-  backButton: {
+  heroOverlayHeader: {
     position: 'absolute',
-    top: 18,
-    left: 22,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(61, 45, 34, 0.35)',
+    left: 16,
+    right: 16,
+    top: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  heroBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(45, 43, 40, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   favoriteButton: {
-    position: 'absolute',
-    right: 32,
-    bottom: 22,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(45, 43, 40, 0.4)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pagination: {
+  galleryStrip: {
     position: 'absolute',
-    bottom: 28,
-    alignSelf: 'center',
+    bottom: 14,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 10,
+  },
+  galleryThumb: {
+    flex: 1,
+    height: 64,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    backgroundColor: '#D9D0C7',
+  },
+  galleryThumbSelected: {
+    borderColor: '#FFAA26',
+    borderWidth: 2.5,
+  },
+  galleryThumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  galleryExtraThumb: {
+    position: 'relative',
+  },
+  galleryExtraOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(45, 43, 40, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  galleryExtraText: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  bodyContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 110,
+  },
+  spaHeaderBlock: {
+    marginBottom: 12,
+  },
+  spaTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  paginationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FFFFFF',
-  },
-  paginationDotActive: {
-    width: 30,
-    backgroundColor: '#FFAA26',
-  },
-  headingColumn: {
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginBottom: 26,
-    gap: 6,
+    justifyContent: 'space-between',
   },
   spaName: {
-    color: '#282725',
+    fontFamily: 'Sora-SemiBold',
     fontSize: 22,
-    fontWeight: '800',
-    lineHeight: 28,
-    marginVertical: 2,
+    color: '#2D2B28',
+    flex: 1,
+    marginRight: 8,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontFamily: 'Sora-Medium',
+    fontSize: 14,
+    color: '#2D2B28',
+    marginLeft: 4,
+  },
+  timingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 6,
+  },
+  openNowBadge: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  closedBadge: {
+    backgroundColor: '#FFEBEE',
+  },
+  openNowText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 12,
+    color: '#2E7D32',
+  },
+  closedText: {
+    color: '#C62828',
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    marginTop: 8,
   },
   locationText: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 13,
+    color: '#6C6258',
+    marginLeft: 4,
     flex: 1,
-    color: '#5F5952',
-    fontSize: 15,
-    fontWeight: '500',
   },
-  ratingRow: {
+  trustChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: 14,
+  },
+  trustChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EBE3D7',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
     gap: 5,
   },
-  ratingText: {
-    color: '#8C8881',
-    fontSize: 14,
-    fontWeight: '800',
+  trustChipText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 12,
+    color: '#2D2B28',
   },
-  ratingCount: {
-    color: '#8C8881',
-    fontWeight: '600',
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    gap: 12,
-    marginBottom: 22,
-  },
-  infoTile: {
-    flex: 1,
-    minHeight: 70,
-    borderRadius: 9,
-    backgroundColor: '#FFF8EE',
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    shadowColor: '#8B6C45',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 1,
+    justifyContent: 'space-between',
+    marginTop: 12,
+    marginBottom: 10,
   },
-  infoIconCircle: {
+  sectionTitle: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 18,
+    color: '#2D2B28',
+  },
+  handpickedBanner: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EBE3D7',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  handpickedCopy: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 10,
+  },
+  lotusCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFF3E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  handpickedText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 13,
+    color: '#2D2B28',
+    flex: 1,
+    lineHeight: 18,
+  },
+  handpickedImage: {
+    width: 72,
+    height: 52,
+    borderRadius: 10,
+  },
+  servicesList: {
+    gap: 5,
+  },
+  treatmentCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EBE3D7',
+    padding: 14,
+  },
+  treatmentTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  treatmentTitle: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 16,
+    color: '#2D2B28',
+    flex: 1,
+    marginRight: 8,
+  },
+  treatmentPrice: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 17,
+    color: '#E8950F',
+  },
+  treatmentMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 12,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaItemText: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 12,
+    color: '#9A9084',
+  },
+  toggleTreatmentsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    marginTop: 6,
+    gap: 4,
+  },
+  toggleTreatmentsText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 14,
+    color: '#FFAA26',
+  },
+  bookingSectionBlock: {
+    marginTop: 24,
+  },
+  dateTabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    // marginTop: 12,
+    backgroundColor:'#FFB02E1a',
+    borderRadius:10
+  },
+  dateTab: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    // backgroundColor: '#F7EFE6',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateTabActive: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal:10,
+    alignItems: 'center',
+    borderColor: '#FFAA26',
+  },
+  dateTabText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 11,
+    color: '#6C6258',
+    textAlign: 'center',
+  },
+  dateTabTextActive: {
+    fontFamily: 'Sora-SemiBold',
+    color: '#2D2B28',
+  },
+  nextAvailableBanner: {
+    backgroundColor: '#FFF5E6',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  nextAvailableText: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 13,
+    color: '#6C6258',
+  },
+  recommendedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 3,
+  },
+  recommendedText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 11,
+    color: '#E8950F',
+  },
+  otherSlotsTitle: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 14,
+    color: '#2D2B28',
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  slotStateBox: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  slotStateTitle: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 14,
+    color: '#2D2B28',
+  },
+  slotStateText: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 12,
+    color: '#9A9084',
+    marginTop: 4,
+  },
+  slotGridRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  slotBtn: {
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EBE3D7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  slotBtnSelected: {
+    backgroundColor: '#FFAA26',
+    borderColor: '#FFAA26',
+  },
+  slotBtnDisabled: {
+    backgroundColor: '#F4EFEA',
+    borderColor: 'transparent',
+  },
+  slotBtnText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 13,
+    color: '#2D2B28',
+  },
+  slotBtnTextSelected: {
+    fontFamily: 'Sora-SemiBold',
+    color: '#FFFFFF',
+  },
+  slotBtnTextDisabled: {
+    color: '#BDB3A6',
+  },
+  selectedSlotBadge: {
+    position: 'absolute',
+    right: 3,
+    top: 3,
+    backgroundColor: '#2D2B28',
+    borderRadius: 3,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  selectedSlotBadgeText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 6,
+    color: '#FFFFFF',
+  },
+  arrivalTipBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF7ED',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 14,
+  },
+  arrivalTipText: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 12,
+    color: '#2E7D32',
+    marginLeft: 6,
+    flex: 1,
+  },
+  optionCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#EBE3D7',
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    marginTop: 16,
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: 0,
+  },
+  optionTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: '#FFAA26',
+    borderWidth: 2,
+    borderColor: '#2D2B28',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 12,
+    marginTop: 2,
   },
-  infoTextColumn: {
+  radioInner: {
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    backgroundColor: '#2D2B28',
+  },
+  optionCopy: {
     flex: 1,
+    paddingRight: 64,
   },
-  infoTitle: {
-    color: '#292825',
-    fontSize: 16,
-    fontWeight: '800',
-    lineHeight: 22,
-  },
-  infoSubtitle: {
-    color: '#5F5952',
-    fontSize: 14,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  amenitiesList: {
-    flexDirection: 'row',
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    paddingBottom: 20,
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  badgeChip: {
-    minHeight: 36,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    gap: 7,
-  },
-  badgeIcon: {
-    color: '#FFAA26',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  badgeLabel: {
-    color: '#4E4943',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  sectionHeader: {
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginBottom: 0,
-  },
-  sectionTitle: {
-    color: '#282725',
-    fontSize: 21,
-    fontWeight: '800',
-    lineHeight: 28,
-    marginBottom: 18,
-  },
-  standaloneSectionTitle: {
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-  },
-  reviewSectionHeader: {
-    marginTop: 12,
-  },
-  serviceCard: {
-    marginHorizontal: HORIZONTAL_SCREEN_PADDING,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 15,
-    shadowColor: '#7E6342',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-  },
-  serviceCardSpacing: {
-    marginTop: 14,
-  },
-  pressedCard: {
-    transform: [{ scale: 0.995 }],
-    opacity: 0.92,
-  },
-  serviceTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 14,
-    marginBottom: 12,
-  },
-  serviceTitle: {
-    flex: 1,
-    color: '#262523',
-    fontSize: 20,
-    fontWeight: '800',
-    lineHeight: 25,
-  },
-  servicePrice: {
-    color: '#FFA323',
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 25,
-  },
-  serviceSubtitle: {
-    color: '#8A8A8A',
+  optionTitle: {
+    fontFamily: 'Sora-SemiBold',
     fontSize: 15,
-    fontWeight: '500',
-    lineHeight: 24,
-    marginBottom: 18,
-  },
-  serviceMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
-  },
-  metaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    maxWidth: '48%',
-  },
-  metaText: {
-    color: '#929292',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  viewAllTreatmentsButton: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingVertical: 16,
-    marginBottom: 12,
-  },
-  viewAllTreatmentsText: {
     color: '#2D2B28',
-    fontSize: 15,
-    fontWeight: '700',
   },
-  reviewList: {
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    paddingBottom: 24,
+  optionDescription: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#6C6258',
+    marginTop: 4,
   },
-  reviewCard: {
-    minHeight: 152,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#7E6342',
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-  },
-  reviewCardSpacing: {
-    marginLeft: 12,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-    gap: 12,
-  },
-  reviewAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#232323',
+  priceBubble: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 70,
+    backgroundColor: '#FFF3E0',
     alignItems: 'center',
     justifyContent: 'center',
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
   },
-  reviewAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  reviewAuthor: {
-    flex: 1,
-    color: '#2B2926',
+  priceBubbleText: {
+    fontFamily: 'Sora-SemiBold',
     fontSize: 16,
-    fontWeight: '800',
+    color: '#2D2B28',
   },
-  reviewRatingRow: {
+  bottomStickyBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    // borderTopWidth: 1,
+    // borderTopColor: '#EBE3D7',
+  },
+  unbookableNotice: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    marginBottom: 10,
-  },
-  reviewWhen: {
-    color: '#989898',
-    fontSize: 13,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  reviewText: {
-    color: '#4B4946',
-    fontSize: 14,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  offerCard: {
-    height: 128,
-    marginHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginBottom: 28,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#33210F',
-  },
-  offerImage: {
-    ...StyleSheet.absoluteFill,
-    width: '100%',
-    height: '100%',
-  },
-  offerOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(39, 22, 7, 0.58)',
-  },
-  offerContent: {
-    position: 'absolute',
-    left: 20,
-    top: 20,
-    right: 140,
-  },
-  offerLabel: {
-    color: '#F6EFE7',
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  offerTitle: {
-    fontFamily:'Sora-Bold',
-    color: '#FFFFFF',
-    fontSize: 18,
-    // fontWeight: '900',
-    // lineHeight: 28,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginBottom: 8,
+    gap: 6,
   },
-  offerSubtitle: {
-    fontFamily:'WorkSans-Medium',
-    color: '#FFF4E4',
-    fontSize: 13,
-    // fontWeight: '800',
-    // lineHeight: 20,
+  unbookableNoticeText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 12,
+    color: '#D32F2F',
+    flex: 1,
   },
-  offerButton: {
-    position: 'absolute',
-    right: 22,
-    bottom: 28,
-    backgroundColor: '#FFB02E',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-  },
-  offerButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  locationCard: {
-    marginHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginBottom: 15,
+  ctaButton: {
+    height: 52,
     borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#7E6342',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-  },
-  mapPreview: {
-    // height: 174,
-    overflow: 'hidden',
-    backgroundColor: '#C7D0D0',
-  },
-  mapRoad: {
-    position: 'absolute',
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(170, 177, 177, 0.7)',
-  },
-  mapRoadOne: {
-    left: -40,
-    right: -30,
-    top: 40,
-    transform: [{ rotate: '-24deg' }],
-  },
-  mapRoadTwo: {
-    left: 70,
-    right: -60,
-    top: 112,
-    transform: [{ rotate: '13deg' }],
-  },
-  mapRoadThree: {
-    width: 230,
-    left: -30,
-    top: 118,
-    transform: [{ rotate: '61deg' }],
-  },
-  mapLabel: {
-    position: 'absolute',
-    color: 'rgba(78, 120, 110, 0.72)',
-    fontSize: 18,
-    fontWeight: '800',
-    lineHeight: 22,
-  },
-  mapLabelTop: {
-    top: 20,
-    right: 30,
-    width: 210,
-    color: 'rgba(106, 112, 122, 0.56)',
-  },
-  mapLabelBottom: {
-    left: 40,
-    bottom: 16,
-    width: 180,
-  },
-  mapMarker: {
-    position: 'absolute',
-    left: '43%',
-    top: '42%',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
     backgroundColor: '#FFAA26',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  locationAddressRow: {
-    minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    gap: 14,
+  ctaButtonPressed: {
+    opacity: 0.85,
   },
-  locationAddress: {
+  ctaButtonDisabled: {
+    opacity: 0.5,
+    backgroundColor: '#BDB3A6',
+  },
+  ctaButtonText: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  modalRoot: {
     flex: 1,
-    color: '#969696',
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 22,
+    backgroundColor: '#1E1C1A',
   },
-  directionButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#242424',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  descriptionText: {
-    color: '#1f1f1f',
-    fontSize: 14,
-    fontWeight: '500',
-    lineHeight: 21,
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginTop: -20,
-    marginBottom:12
-  },
-  bookNowRow: {
-    marginTop: 0,
-    minHeight: 50,
-    backgroundColor: '#FBF3EA',
+  modalHeader: {
+    height: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: HORIZONTAL_SCREEN_PADDING,
-    paddingTop: 12,
-    paddingBottom: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(112, 96, 77, 0.08)',
-    gap: 18,
+    paddingHorizontal: 16,
   },
-  bookNowPriceColumn: {
-    minWidth: 102,
-  },
-  fromText: {
-    color: '#A19A93',
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
-    marginBottom: 3,
-  },
-  bookNowPrice: {
-    color: '#262523',
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 36,
-  },
-  bookNowAction: {
-    flex: 1,
-    minHeight: 59,
-    borderRadius: 10,
-    backgroundColor: '#FFB02E',
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookNowActionPressed: {
-    opacity: 0.88,
-  },
-  bookNowActionDisabled: {
-    opacity: 0.45,
-  },
-  bookNowActionText: {
+  modalTitle: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 16,
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '900',
   },
-  listSeparator: {
-    height: 0,
+  modalSlide: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  emptyText: {
-    color: '#7A746E',
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 22,
-    marginHorizontal: HORIZONTAL_SCREEN_PADDING,
-    marginBottom: 22,
+  modalImage: {
+    width: '100%',
+    height: '80%',
+  },
+  modalTapHint: {
+    position: 'absolute',
+    bottom: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  modalTapHintText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  hoursModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(25, 23, 20, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  hoursModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  hoursHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  clockCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#EEF4F8',
+    borderWidth: 1,
+    borderColor: '#DFE7EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hoursHeaderTexts: {
+    flex: 1,
+  },
+  hoursTitle: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 20,
+    color: '#1F1D1B',
+  },
+  hoursSubtitle: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 13,
+    color: '#8C857B',
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  hoursDivider: {
+    height: 1,
+    backgroundColor: '#EFEAE4',
+    marginVertical: 16,
+  },
+  hoursRowsList: {
+    gap: 12,
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  hoursDayLabel: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 14,
+    color: '#8C857B',
+  },
+  hoursTimeValue: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 14,
+    color: '#6C6258',
   },
 });
 

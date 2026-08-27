@@ -46,6 +46,10 @@ export interface SpaDetails {
   is_claimed?: boolean;
   is_featured?: boolean;
   is_premium?: boolean;
+  is_open_now?: boolean;
+  booking_fee?: string | number | null;
+  minimum_booking_amount?: string | number | null;
+  opening_hours?: SpaTiming[] | null;
   profile?: SpaProfile | null;
   services?: SpaService[];
   gallery?: SpaGalleryItem[];

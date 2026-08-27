@@ -10,6 +10,9 @@ export interface BookingService {
   price: number | string;
   image: ImageSourcePropType;
   location: string;
+  spaName?: string;
+  category?: string;
+  rating?: number | string;
 }
 
 export interface BookingDate {

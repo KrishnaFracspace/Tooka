@@ -35,6 +35,7 @@ export interface MappedSpa {
   subtitle: string;
   typeA: string;
   typeB: string;
+  starting_price?: string | null;
 }
 
 export interface PaginationInfo {

@@ -18,4 +18,5 @@ export interface Spa {
   min_booking_amount?: string | null;
   minimum_booking_amount?: string | null;
   is_hidden?: boolean;
+  starting_price?: string | null;
 }

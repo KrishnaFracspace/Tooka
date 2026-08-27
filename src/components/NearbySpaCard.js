@@ -26,7 +26,7 @@ const NearbySpaCard = ({ item, onPress }) => {
             <View>
                 {/* <Text style={{fontFamily:'WorkSans-Regular',fontSize:12,color:'#219C18'}}>Available Now</Text> */}
                 <Text style={{fontFamily:'WorkSans-SemiBold',fontSize:14,color:'#1f1f1f',marginTop:5}}>
-                    ₹999 <Text style={{fontFamily:'WorkSans-SemiBold',fontSize:12,}}>onwards</Text>
+                    ₹{item.price} <Text style={{fontFamily:'WorkSans-SemiBold',fontSize:12,}}>onwards</Text>
                 </Text>
             </View>
             <Pressable onPress={onPress} style={styles.button}>

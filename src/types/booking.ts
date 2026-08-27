@@ -1,6 +1,6 @@
 export type BookingStatus = 'pending' | 'upcoming' | 'completed' | 'cancelled';
 
-export type BookingSection = 'upcoming' | 'completed' | 'cancelled';
+export type BookingSection = 'upcoming' | 'completed' | 'cancelled' | 'no-show';
 
 export const BOOKING_STATUS = {
   PENDING_PAYMENT: 'pending_payment',

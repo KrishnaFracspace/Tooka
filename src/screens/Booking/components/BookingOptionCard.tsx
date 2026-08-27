@@ -24,10 +24,9 @@ function BookingOptionCard({ option, selected, onPress }: Props): React.ReactEle
 
   return (
     <View style={[styles.section, styles.optionSection]}>
-      <Text style={styles.sectionTitle}>Booking option</Text>
       <Pressable
         onPress={onPress}
-        style={styles.optionCard}
+        style={[styles.optionCard, selected && styles.optionCardSelected]}
         accessibilityRole="radio"
         accessibilityState={{ checked: selected }}
       >
@@ -40,7 +39,6 @@ function BookingOptionCard({ option, selected, onPress }: Props): React.ReactEle
           </View>
           <View style={styles.optionCopy}>
             <Text style={styles.optionTitle}>{option.title}</Text>
-            {/* <Text style={styles.optionSubtitle}>{option.subtitle}</Text> */}
             <Text style={styles.optionDescription}>{option.description}</Text>
           </View>
         </View>
