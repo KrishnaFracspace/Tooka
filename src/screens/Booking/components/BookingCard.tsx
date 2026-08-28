@@ -210,7 +210,7 @@ const BookingActions = React.memo<BookingActionsProps>(function BookingActions({
   if (section === 'upcoming') {
     return (
       <View style={styles.actionsRow}>
-        <Pressable
+        {/* <Pressable
           onPress={handleChatWithSpa}
           style={({ pressed }) => [
             styles.actionBtn,
@@ -224,7 +224,7 @@ const BookingActions = React.memo<BookingActionsProps>(function BookingActions({
           <Text style={[styles.actionBtnText, styles.actionBtnTextOutlined]}>
             Chat With Spa
           </Text>
-        </Pressable>
+        </Pressable> */}
 
         <Pressable
           onPress={handleFreeCallSpa}
@@ -245,48 +245,48 @@ const BookingActions = React.memo<BookingActionsProps>(function BookingActions({
     );
   }
 
-  if (section === 'completed') {
-    return (
-      <View style={styles.actionsRow}>
-        <Pressable
-          onPress={handleBookAgain}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            styles.actionBtnPrimary,
-            styles.actionBtnHalf,
-            pressed && styles.actionBtnPressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Book again"
-        >
-          <Text style={[styles.actionBtnText, styles.actionBtnTextPrimary]}>
-            Book Again
-          </Text>
-        </Pressable>
+  // if (section === 'completed') {
+  //   return (
+  //     <View style={styles.actionsRow}>
+  //       <Pressable
+  //         onPress={handleBookAgain}
+  //         style={({ pressed }) => [
+  //           styles.actionBtn,
+  //           styles.actionBtnPrimary,
+  //           styles.actionBtnHalf,
+  //           pressed && styles.actionBtnPressed,
+  //         ]}
+  //         accessibilityRole="button"
+  //         accessibilityLabel="Book again"
+  //       >
+  //         <Text style={[styles.actionBtnText, styles.actionBtnTextPrimary]}>
+  //           Book Again
+  //         </Text>
+  //       </Pressable>
 
-        <Pressable
-          onPress={handleViewReceipt}
-          style={({ pressed }) => [
-            styles.actionBtn,
-            styles.actionBtnOutlined,
-            styles.actionBtnHalf,
-            pressed && styles.actionBtnPressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="View receipt"
-        >
-          <Text style={[styles.actionBtnText, styles.actionBtnTextOutlined]}>
-            View Receipt
-          </Text>
-        </Pressable>
-      </View>
-    );
-  }
+  //       <Pressable
+  //         onPress={handleViewReceipt}
+  //         style={({ pressed }) => [
+  //           styles.actionBtn,
+  //           styles.actionBtnOutlined,
+  //           styles.actionBtnHalf,
+  //           pressed && styles.actionBtnPressed,
+  //         ]}
+  //         accessibilityRole="button"
+  //         accessibilityLabel="View receipt"
+  //       >
+  //         <Text style={[styles.actionBtnText, styles.actionBtnTextOutlined]}>
+  //           View Receipt
+  //         </Text>
+  //       </Pressable>
+  //     </View>
+  //   );
+  // }
 
   // Cancelled — full-width outlined button
   return (
     <View style={styles.actionsRow}>
-      <Pressable
+      {/* <Pressable
         onPress={handleViewReceipt}
         style={({ pressed }) => [
           styles.actionBtn,
@@ -300,7 +300,7 @@ const BookingActions = React.memo<BookingActionsProps>(function BookingActions({
         <Text style={[styles.actionBtnText, styles.actionBtnTextOutlined]}>
           View Receipt
         </Text>
-      </Pressable>
+      </Pressable> */}
     </View>
   );
 });

@@ -5,7 +5,7 @@ import ProfileAvatar from './ProfileAvatar';
 import { styles } from '../styles';
 
 const AVATAR = {
-  uri: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=60',
+  uri: 'https://duixj37yn5405.cloudfront.net/appImages/profile11.png',
 };
 
 type Props = {

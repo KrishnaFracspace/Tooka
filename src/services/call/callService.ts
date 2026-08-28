@@ -1,5 +1,6 @@
 import { agoraService } from './agoraService';
 import { socketService } from './socketService';
+import { ringtoneService } from './ringtoneService';
 import { CallSession, CallRequest } from '../../types/call';
 import authAxiosClient from '../../api/authAxiosClient';
 
@@ -94,6 +95,7 @@ class CallService {
     callLogger.info('CALL', `ENTER: cleanup - reason=${reason}`, ctx);
     
     console.log(`[CallFlow] Cleaning up CallService. Reason: ${reason}`);
+    ringtoneService.stop();
     this.clearSessions();
     await agoraService.leaveChannel();
     

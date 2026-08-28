@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await AuthApi.login({ phone, otp });
       const { token: serverToken, user: serverUser } = response.data;
-      // console.log("token: ", serverToken);
+      console.log("token: ", serverToken);
 
       // Update state
       setToken(serverToken);
