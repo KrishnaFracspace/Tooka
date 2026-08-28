@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import { AUTH_COLORS, AUTH_CONFIG } from '../constants/auth';
 
 interface OTPInputProps {
@@ -28,6 +28,7 @@ export const OTPInput: React.FC<OTPInputProps> = React.memo((props) => {
       autoFocus={props.autoFocus}
       style={styles.input}
       textContentType="oneTimeCode"
+      autoComplete={Platform.OS === 'android' ? 'sms-otp' : 'one-time-code'}
       selectionColor={AUTH_COLORS.primary}
       accessibilityLabel="OTP digit"
       editable={!props.disabled}

@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
   View,
   type NativeSyntheticEvent,
@@ -17,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import { AuthHeader } from '../components/AuthHeader';
 import { AuthCard } from '../components/AuthCard';
@@ -251,35 +253,89 @@ const AuthenticationScreen: React.FC<AuthenticationScreenProps> = ({ isEmbedded 
     }
   }, [phone, otpDigits, isRegistered, name, loading, spaId, serviceId, serviceName, openBooking, isEmbedded, login, register, navigation]);
 
+  const handleGoBackToPhone = useCallback(() => {
+    setError('');
+    setSuccessMessage('');
+    setOtp(Array(AUTH_CONFIG.otpLength).fill(''));
+    setOtpDigits('');
+    transitionToStep('phone');
+  }, [transitionToStep]);
+
   // OTP inputs callbacks
   const handleOtpChange = useCallback((index: number, value: string) => {
     const sanitized = value.replace(/[^0-9]/g, '');
     if (!sanitized) {
+      setOtp((prev) => {
+        const nextOtp = [...prev];
+        nextOtp[index] = '';
+        setOtpDigits(nextOtp.join(''));
+        return nextOtp;
+      });
       return;
     }
-    const nextOtp = [...otp];
-    nextOtp[index] = sanitized;
-    setOtp(nextOtp);
-    const code = nextOtp.join('');
-    setOtpDigits(code);
 
-    if (index < AUTH_CONFIG.otpLength - 1) {
-      otpRefs.current[index + 1]?.focus();
+    if (sanitized.length > 1) {
+      // Auto-fill or multi-character paste / typing over existing char
+      if (sanitized.length === AUTH_CONFIG.otpLength) {
+        // Full 6-digit OTP string
+        const digits = sanitized.split('');
+        setOtp(digits);
+        setOtpDigits(digits.join(''));
+        otpRefs.current[AUTH_CONFIG.otpLength - 1]?.focus();
+        return;
+      }
+
+      setOtp((prev) => {
+        const nextOtp = [...prev];
+        if (sanitized.length >= AUTH_CONFIG.otpLength) {
+          const digits = sanitized.slice(0, AUTH_CONFIG.otpLength).split('');
+          setOtpDigits(digits.join(''));
+          otpRefs.current[AUTH_CONFIG.otpLength - 1]?.focus();
+          return digits;
+        }
+
+        const charToUse = sanitized.slice(-1);
+        nextOtp[index] = charToUse;
+        setOtpDigits(nextOtp.join(''));
+        if (index < AUTH_CONFIG.otpLength - 1) {
+          otpRefs.current[index + 1]?.focus();
+        }
+        return nextOtp;
+      });
+      return;
     }
-  }, [otp]);
+
+    // Single digit input
+    setOtp((prev) => {
+      const nextOtp = [...prev];
+      nextOtp[index] = sanitized;
+      setOtpDigits(nextOtp.join(''));
+      if (index < AUTH_CONFIG.otpLength - 1) {
+        otpRefs.current[index + 1]?.focus();
+      }
+      return nextOtp;
+    });
+  }, []);
 
   const handleOtpKeyPress = useCallback((index: number, event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
     if (event.nativeEvent.key === 'Backspace') {
-      const nextOtp = [...otp];
-      nextOtp[index] = '';
-      setOtp(nextOtp);
-      setOtpDigits(nextOtp.join(''));
+      setOtp((prev) => {
+        const nextOtp = [...prev];
+        if (nextOtp[index] !== '') {
+          nextOtp[index] = '';
+          setOtpDigits(nextOtp.join(''));
+          return nextOtp;
+        }
 
-      if (index > 0) {
-        otpRefs.current[index - 1]?.focus();
-      }
+        if (index > 0) {
+          nextOtp[index - 1] = '';
+          setOtpDigits(nextOtp.join(''));
+          otpRefs.current[index - 1]?.focus();
+        }
+        return nextOtp;
+      });
     }
-  }, [otp]);
+  }, []);
 
   const handleResendOtp = useCallback(async () => {
     if (loading) return;
@@ -322,11 +378,36 @@ const AuthenticationScreen: React.FC<AuthenticationScreenProps> = ({ isEmbedded 
         )}
 
         {step === 'name' && (
-          <NameInput value={name} onChangeText={setName} error={error} disabled={loading} />
+          <View>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={handleGoBackToPhone}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Back to phone input"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="arrow-back" size={18} color={AUTH_COLORS.primary} />
+              <Text style={styles.backButtonText}>Change number</Text>
+            </TouchableOpacity>
+            <NameInput value={name} onChangeText={setName} error={error} disabled={loading} />
+          </View>
         )}
 
         {step === 'otp' && (
           <View style={styles.otpContainer}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={handleGoBackToPhone}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Back to phone input"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="arrow-back" size={18} color={AUTH_COLORS.primary} />
+              <Text style={styles.backButtonText}>Change number</Text>
+            </TouchableOpacity>
+
             <View style={styles.otpLabelRow}>
               <Text style={styles.otpLabel}>Enter 6-digit OTP</Text>
             </View>
@@ -415,6 +496,20 @@ const styles = StyleSheet.create({
   formCard: {
     marginTop: 0,
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+    paddingVertical: 4,
+    paddingRight: 10,
+  },
+  backButtonText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 14,
+    color: AUTH_COLORS.primary,
+    marginLeft: 6,
+  },
   successCard: {
     marginTop: 12,
     paddingVertical: 24,
@@ -465,7 +560,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 18,
-    lineHeight: 20,
   },
 });
 
