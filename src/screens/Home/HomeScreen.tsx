@@ -175,34 +175,46 @@ const HomeScreen: React.FC = () => {
     Analytics.logEvent(AnalyticsEvents.HOME_VIEWED);
   }, []);
   const mapRef = useRef<MapView>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
+
+  const mapRegion = useMemo(() => {
+    const lat = location?.latitude != null ? Number(location.latitude) : NaN;
+    const lng = location?.longitude != null ? Number(location.longitude) : NaN;
+
+    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+      return {
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      };
+    }
+
+    return {
+      latitude: 17.41217,
+      longitude: 78.42293,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    };
+  }, [location?.latitude, location?.longitude]);
 
   useEffect(() => {
-    if (
-      location?.latitude != null &&
-      location?.longitude != null &&
-      !isNaN(Number(location.latitude)) &&
-      !isNaN(Number(location.longitude))
-    ) {
-      const lat = Number(location.latitude);
-      const lng = Number(location.longitude);
+    if (!isMapReady) {
+      return;
+    }
 
+    const timer = setTimeout(() => {
       try {
-        mapRef.current?.animateToRegion(
-          {
-            latitude: lat,
-            longitude: lng,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          },
-          800,
-        );
+        mapRef.current?.animateToRegion(mapRegion, 800);
       } catch (err) {
         if (__DEV__) {
           console.warn('[HomeScreen] Map animateToRegion error:', err);
         }
       }
-    }
-  }, [location?.latitude, location?.longitude]);
+    }, Platform.OS === 'android' ? 200 : 0);
+
+    return () => clearTimeout(timer);
+  }, [isMapReady, mapRegion]);
 
 
 
@@ -566,30 +578,20 @@ const HomeScreen: React.FC = () => {
                     navigation.navigate('Explore')
                 }>
 
-                <View style={styles.mapContainer}>
+                <View style={styles.mapContainer} pointerEvents="none">
 
                     <MapView
                         ref={mapRef}
                         style={styles.map}
-                        pointerEvents="none"
                         scrollEnabled={false}
                         zoomEnabled={false}
                         rotateEnabled={false}
                         pitchEnabled={false}
                         toolbarEnabled={false}
                         loadingEnabled
-                        initialRegion={{
-                            latitude:
-                                location?.latitude != null && !isNaN(Number(location.latitude))
-                                  ? Number(location.latitude)
-                                  : 17.41217,
-                            longitude:
-                                location?.longitude != null && !isNaN(Number(location.longitude))
-                                  ? Number(location.longitude)
-                                  : 78.42293,
-                            latitudeDelta: 0.05,
-                            longitudeDelta: 0.05,
-                        }}>
+                        onMapReady={() => setIsMapReady(true)}
+                        initialRegion={mapRegion}
+                        region={mapRegion}>
 
                         {location?.latitude != null &&
                           location?.longitude != null &&

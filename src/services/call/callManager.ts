@@ -106,7 +106,7 @@ class CallManager {
     callLogger.info('STATE', `Transition state set to INCOMING. Duration: ${Date.now() - stateStart}ms`, ctx);
     
     const ringtoneStart = Date.now();
-    ringtoneService.play().then(() => {
+    ringtoneService.playIncoming().then(() => {
       callLogger.info('AUDIO', `Ringtone playback started successfully. Duration to trigger: ${Date.now() - ringtoneStart}ms`, ctx);
     }).catch(e => {
       callLogger.error('AUDIO', 'Ringtone playback failed', ctx, e);

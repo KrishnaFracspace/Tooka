@@ -14,6 +14,7 @@ import { socketService } from '../services/call/socketService';
 import { callService } from '../services/call/callService';
 import { agoraService } from '../services/call/agoraService';
 import { callManager } from '../services/call/callManager';
+import { ringtoneService } from '../services/call/ringtoneService';
 import { AGORA_CONFIG } from '../config/agora';
 import { callLogger, ENABLE_CALL_DIAGNOSTICS } from '../services/call/callLogger';
 
@@ -199,11 +200,27 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [callState]);
 
+  // Handle ringtone playback based on callState lifecycle
+  useEffect(() => {
+    if (callState === CallState.OUTGOING || callState === CallState.RINGING) {
+      ringtoneService.playOutgoing().catch((err) => {
+        console.error('[CALL_AUDIO] Failed to play outgoing ringtone:', err);
+      });
+    } else if (callState === CallState.INCOMING) {
+      ringtoneService.playIncoming().catch((err) => {
+        console.error('[CALL_AUDIO] Failed to play incoming ringtone:', err);
+      });
+    } else {
+      ringtoneService.stop();
+    }
+  }, [callState]);
+
   const cleanupAndResetCall = useCallback(async (reason: string = 'unknown') => {
     if (isCleaningUpRef.current) return;
     isCleaningUpRef.current = true;
 
     console.log('[CALL] Cleaning up call');
+    ringtoneService.stop();
 
     const sessionToSummarize = sessionRef.current;
     const durationToSummarize = durationRef.current;

@@ -1,58 +1,144 @@
-// @ts-ignore
 import Sound from 'react-native-sound';
 
-// Enable playback in silence mode
-// @ts-ignore
-Sound.setCategory('Playback');
+try {
+  Sound.setCategory('Playback', true);
+} catch (e) {
+  console.warn('[CALL_AUDIO] Failed to set sound category', e);
+}
+
+export type RingtoneType = 'incoming' | 'outgoing';
 
 class RingtoneService {
-  private ringtone: any | null = null;
-  private isPlaying = false;
+  private currentSound: Sound | null = null;
+  private currentType: RingtoneType | null = null;
+  private isLoading = false;
+  private playId = 0; // Incremented on each start/stop to invalidate stale async callbacks
 
-  async play(): Promise<void> {
-    if (this.isPlaying || this.ringtone) {
-      console.log('[RingtoneService] Ringtone already playing or loaded.');
+  /**
+   * Play the incoming call ringtone (incoming_ring.mp3).
+   * Idempotent: Does not recreate or restart sound if already playing or loading incoming ringtone.
+   */
+  async playIncoming(): Promise<void> {
+    return this.startRingtone('incoming', 'incoming_ring.mp3');
+  }
+
+  /**
+   * Play the outgoing call ringtone (outgoing_ring.mp3).
+   * Idempotent: Does not recreate or restart sound if already playing or loading outgoing ringtone.
+   */
+  async playOutgoing(): Promise<void> {
+    return this.startRingtone('outgoing', 'outgoing_ring.mp3');
+  }
+
+  /**
+   * Play specified ringtone type. Defaults to 'incoming' for backwards compatibility.
+   */
+  async play(type: RingtoneType = 'incoming'): Promise<void> {
+    if (type === 'outgoing') {
+      return this.playOutgoing();
+    }
+    return this.playIncoming();
+  }
+
+  /**
+   * Internal helper to start playing a ringtone file safely.
+   */
+  private async startRingtone(type: RingtoneType, filename: string): Promise<void> {
+    // Idempotency check: if already playing or loading the requested type, do nothing
+    if (this.currentType === type && (this.currentSound || this.isLoading)) {
+      console.log(`[CALL_AUDIO] Ringtone '${type}' already playing or loading.`);
       return;
     }
 
-    return new Promise((resolve, reject) => {
-      // Use a bundled sound file or default system ringtone if possible.
-      // @ts-ignore
-      this.ringtone = new Sound('ringtone.mp3', Sound.MAIN_BUNDLE, (error: any) => {
-        if (error) {
-          console.error('[RingtoneService] Failed to load the ringtone', error);
-          this.ringtone = null;
-          reject(error);
-          return;
-        }
+    // Stop any existing playback before starting a new ringtone (ensures only ONE ringtone plays)
+    this.stop();
 
-        if (this.ringtone) {
-          this.ringtone.setNumberOfLoops(-1); // Infinite loop
-          this.ringtone.play((success: boolean) => {
+    const thisPlayId = ++this.playId;
+    this.currentType = type;
+    this.isLoading = true;
+
+    return new Promise<void>((resolve) => {
+      try {
+        console.log(`[CALL_AUDIO] Loading ringtone '${filename}'...`);
+        const sound = new Sound(filename, Sound.MAIN_BUNDLE, (error) => {
+          // Race condition check: If playId changed while loading, discard sound
+          if (this.playId !== thisPlayId) {
+            console.log(`[CALL_AUDIO] Ringtone load callback for '${type}' arrived after state change. Discarding.`);
+            try {
+              sound.release();
+            } catch (_) {}
+            resolve();
+            return;
+          }
+
+          this.isLoading = false;
+
+          if (error) {
+            console.error(`[CALL_AUDIO] Failed to play ringtone '${filename}':`, error);
+            this.currentSound = null;
+            this.currentType = null;
+            resolve();
+            return;
+          }
+
+          this.currentSound = sound;
+          sound.setNumberOfLoops(-1); // Loop continuously while waiting
+
+          sound.play((success) => {
             if (!success) {
-              console.error('[RingtoneService] Playback failed due to audio decoding errors');
-              this.ringtone?.reset();
+              console.error(`[CALL_AUDIO] Ringtone '${filename}' playback failed or interrupted.`);
             }
           });
-          this.isPlaying = true;
-          console.log('[IncomingCall] Starting ringtone');
+
+          console.log(`[CALL_AUDIO] Started ringtone '${type}' (${filename}).`);
           resolve();
-        }
-      });
+        });
+      } catch (err) {
+        this.isLoading = false;
+        this.currentSound = null;
+        this.currentType = null;
+        console.error(`[CALL_AUDIO] Failed to play ringtone '${filename}':`, err);
+        resolve();
+      }
     });
   }
 
+  /**
+   * Stop ringtone playback and release audio resources.
+   * Completely idempotent and safe to call multiple times.
+   */
   stop(): void {
-    if (this.ringtone && this.isPlaying) {
-      console.log('[IncomingCall] Stopping ringtone');
-      this.ringtone.stop(() => {
-        this.isPlaying = false;
-        this.ringtone?.release();
-        this.ringtone = null;
-      });
+    this.playId++;
+    this.isLoading = false;
+
+    if (this.currentSound) {
+      console.log(`[CALL_AUDIO] Stopping ringtone '${this.currentType}'`);
+      const soundToRelease = this.currentSound;
+      this.currentSound = null;
+      this.currentType = null;
+
+      try {
+        soundToRelease.stop(() => {
+          try {
+            soundToRelease.release();
+          } catch (e) {
+            console.error('[CALL_AUDIO] Error releasing sound:', e);
+          }
+        });
+      } catch (e) {
+        console.error('[CALL_AUDIO] Error stopping sound:', e);
+        try {
+          soundToRelease.release();
+        } catch (_) {}
+      }
+    } else {
+      this.currentType = null;
     }
   }
 
+  /**
+   * Release resources. Alias for stop().
+   */
   release(): void {
     this.stop();
   }
