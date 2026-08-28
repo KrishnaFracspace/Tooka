@@ -178,14 +178,14 @@ export const NearbySpaProvider: React.FC<{ children: React.ReactNode }> = ({
           cancelTokenSource.token,
         );
 
-        console.log(
-  '========== NEARBY PAGINATION DEBUG ==========',
-);
-console.log('Requested page:', targetPage);
-console.log('Full response:', JSON.stringify(response, null, 2));
-console.log('response.data:', response?.data);
-console.log('response.pagination:', response?.pagination);
-console.log('============================================');
+//         console.log(
+//   '========== NEARBY PAGINATION DEBUG ==========',
+// );
+// console.log('Requested page:', targetPage);
+// console.log('Full response:', JSON.stringify(response, null, 2));
+// console.log('response.data:', response?.data);
+// console.log('response.pagination:', response?.pagination);
+// console.log('============================================');
 
         // const newSpasRaw: Spa[] = response?.data?.spas || [];
         const newSpasRaw: Spa[] = Array.isArray(response?.data)

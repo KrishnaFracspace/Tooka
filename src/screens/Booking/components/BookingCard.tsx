@@ -1,28 +1,31 @@
 /**
  * BookingCard
  *
- * Reusable booking card UI component that matches the Figma design for the
+ * Reusable booking card UI component matching the Figma design for the
  * All Bookings screen. Supports Upcoming, Completed, and Cancelled tabs.
  *
  * Layout (per Figma):
- *  ┌──────────────────────────────────────────────┐
- *  │  [Date & Time]          [Badge/Toggle]       │
- *  ├──────────────────────────────────────────────┤
- *  │  [Image]  │  Spa Name                        │
- *  │           │  📍 Location                     │
- *  │           │  🌸 Service • Duration           │
- *  │           │  👤 1 Person                     │
- *  │           │  Booking ID: TK123456            │
- *  ├──────────────────────────────────────────────┤
- *  │  [Chat With Spa]       [Free Call Spa]       │ ← Upcoming
- *  │  [Book Again]          [View Receipt]        │ ← Completed
- *  │            [View Receipt]                    │ ← Cancelled
- *  └──────────────────────────────────────────────┘
+ *  ┌──────────────────────────────────────────────────────────┐
+ *  │  ┌───────────────┐   🕘 03:00 PM       Remind me  [ON]   │
+ *  │  │               │   ────────────────────────────────── │
+ *  │  │   SPA IMAGE   │   Ebony spa                          │
+ *  │  │               │   📍 HITECH City, Hyderabad          │
+ *  │  │  ┌────────────┤   🗺 Open in maps                  › │
+ *  │  │24│            │                                      │
+ *  │  │Aug            │   Booking ID | TK987654              │
+ *  │  └──┴────────────┘                                      │
+ *  │                                                          │
+ *  │  ┌────────────────────┐  ┌────────────────────────────┐ │
+ *  │  │    Chat With Spa   │  │      Free Call Spa         │ │
+ *  │  └────────────────────┘  └────────────────────────────┘ │
+ *  └──────────────────────────────────────────────────────────┘
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
+  Linking,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -35,7 +38,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { BackendBookingListItem } from '../../../types/booking';
+import type { BackendBookingListItem, BookingSection } from '../../../types/booking';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import { getBookingSection } from '../../../utils/getBookingSection';
 
@@ -45,8 +48,6 @@ const FALLBACK_IMAGE = {
   uri: 'https://d2f15ematxpwp4.cloudfront.net/appImages/bookingPlaceholder.png',
 };
 
-const CARD_IMAGE_ASPECT = 100 / 130; // width / height ≈ Figma ratio
-
 // Tooka brand colours
 const C = {
   primary: '#FFAE2B',
@@ -54,25 +55,60 @@ const C = {
   white: '#FFFFFF',
   bg: '#FFF8F0',
   cardBg: '#FFFFFF',
-  border: '#EFE9DD',
+  border: '#F2EBE1',
   heading: '#1E1E1E',
   body: '#4D4D4D',
   muted: '#8A8A8A',
-  divider: '#EEE8DE',
+  divider: '#F0EAE0',
   completed: '#2DB87A',
   completedBg: '#E6F9EF',
   cancelled: '#D94A45',
   cancelledBg: '#FBE9E8',
-  outlinedBorder: '#FFB02E',
+  outlinedBorder: '#FFAE2B',
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type BookingSection = 'upcoming' | 'completed' | 'cancelled' | 'no-show';
+export type { BookingSection };
 
 export type BookingCardProps = {
   booking: BackendBookingListItem;
   style?: StyleProp<ViewStyle>;
+};
+
+// ─── Helper: Date Badge Parser ───────────────────────────────────────────────
+
+const parseDateBadge = (dateStr?: string): { day: string; month: string } => {
+  if (!dateStr || typeof dateStr !== 'string') {
+    return { day: '--', month: '--' };
+  }
+  const clean = dateStr.trim();
+  if (!clean) return { day: '--', month: '--' };
+
+  const parts = clean.split(/[\s,-]+/);
+  if (parts.length >= 2) {
+    if (/^\d{1,2}$/.test(parts[0])) {
+      const day = parts[0];
+      const rawMonth = parts[1];
+      const month = rawMonth.length > 3 ? rawMonth.substring(0, 3) : rawMonth;
+      return { day, month };
+    }
+    if (parts[0].length === 4 && /^\d{4}$/.test(parts[0])) {
+      const dateObj = new Date(clean);
+      if (!isNaN(dateObj.getTime())) {
+        const day = String(dateObj.getDate());
+        const month = dateObj.toLocaleString('en-US', { month: 'short' });
+        return { day, month };
+      }
+    }
+  }
+
+  const dateObj = new Date(clean);
+  if (!isNaN(dateObj.getTime())) {
+    const day = String(dateObj.getDate());
+    const month = dateObj.toLocaleString('en-US', { month: 'short' });
+    return { day, month };
+  }
+
+  return { day: '--', month: clean.substring(0, 3) };
 };
 
 // ─── Sub-component: StatusBadge ───────────────────────────────────────────────
@@ -85,9 +121,8 @@ const StatusBadge = React.memo<StatusBadgeProps>(function StatusBadge({
   section,
 }) {
   if (section === 'upcoming') {
-    return null; // Upcoming uses a toggle — not a badge
+    return null;
   }
-  // console.log("section in status badge: ", section);
 
   const isCompleted = section === 'completed';
 
@@ -137,38 +172,6 @@ const ReminderToggle = React.memo(function ReminderToggle() {
   );
 });
 
-// ─── Sub-component: BookingInfoRow ────────────────────────────────────────────
-
-type BookingInfoRowProps = {
-  iconName: string;
-  label: string;
-  numberOfLines?: number;
-};
-
-const BookingInfoRow = React.memo<BookingInfoRowProps>(function BookingInfoRow({
-  iconName,
-  label,
-  numberOfLines = 1,
-}) {
-  return (
-    <View style={styles.infoRow}>
-      <Ionicons
-        name={iconName}
-        size={12}
-        color={C.muted}
-        style={styles.infoIcon}
-      />
-      <Text
-        style={styles.infoText}
-        numberOfLines={numberOfLines}
-        ellipsizeMode="tail"
-      >
-        {label}
-      </Text>
-    </View>
-  );
-});
-
 // ─── Sub-component: BookingActions ────────────────────────────────────────────
 
 type BookingActionsProps = {
@@ -183,7 +186,6 @@ const BookingActions = React.memo<BookingActionsProps>(function BookingActions({
   const handleChatWithSpa = useCallback(() => {
     // Navigation / business logic preserved externally
   }, []);
-  // console.log("bookinddd: ", booking);
 
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -310,125 +312,130 @@ const BookingCard = React.memo<BookingCardProps>(function BookingCard({
   style,
 }) {
   const { width } = useWindowDimensions();
-  // console.log("booking in booking card: ", booking);
 
-  // Derive section from booking status (uses existing util, no logic change)
   const section: BookingSection =
     (getBookingSection(booking.status) as BookingSection | null) ?? 'upcoming';
 
-  // Guest label
-  const guestLabel = booking.guestCount
-    ? `${booking.guestCount} ${booking.guestCount === 1 ? 'Person' : 'People'}`
-    : 'Guest details pending';
-
-  // Booking code
   const bookingCode = booking.bookingReference ?? booking.bookingId ?? 'Pending';
+  const badgeDate = useMemo(() => parseDateBadge(booking.date), [booking.date]);
 
-  // Service with duration (serviceName may encode duration already)
-  const serviceLabel = booking.serviceName ?? 'Service details pending';
+  const locationText = useMemo(() => {
+    const locality = booking.raw?.spa_snapshot?.locality_name;
+    const city = booking.raw?.spa_snapshot?.city_name;
+    const parts = [locality, city].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : 'Location unavailable';
+  }, [booking.raw?.spa_snapshot?.locality_name, booking.raw?.spa_snapshot?.city_name]);
 
-  // Date + time formatted as "24 June 2026 | 03:00 PM"
-  const dateTimeLabel =
-    booking.date && booking.time
-      ? `${booking.date} | ${booking.time}`
-      : booking.date || '--';
+  const handleOpenMaps = useCallback(async () => {
+    const snapshot = booking.raw?.spa_snapshot as any;
+    const mapUrl = snapshot?.google_maps_url;
+    let targetUrl = typeof mapUrl === 'string' && mapUrl.trim() ? mapUrl.trim() : '';
 
-  // Image: responsive based on screen width
-  const imageSize = Math.min(Math.floor(width * 0.24), 100);
+    if (!targetUrl) {
+      const spaName = booking.spaName ?? '';
+      const locality = snapshot?.locality_name ?? '';
+      const city = snapshot?.city_name ?? '';
+      const query = encodeURIComponent(`${spaName} ${locality} ${city}`.trim());
+      targetUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
+    }
+
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      if (canOpen) {
+        await Linking.openURL(targetUrl);
+      } else {
+        Alert.alert('Unable to open map', 'No maps application is available to open this link.');
+      }
+    } catch {
+      Alert.alert('Unable to open map', 'An error occurred while opening maps.');
+    }
+  }, [booking]);
+
+  const imageWidth = Math.min(Math.floor(width * 0.28), 115);
 
   return (
-    <View
-      style={[styles.card, style]}
-      accessibilityRole="none"
-    >
-      {/* ── Top Row ── */}
-      <View style={styles.topRow}>
-        <View style={styles.topRowLeft}>
-          <Ionicons
-            name="calendar-outline"
-            size={11}
-            color={C.muted}
-            style={styles.topRowCalIcon}
-          />
-          <Text style={styles.dateTimeText} numberOfLines={1}>
-            {dateTimeLabel}
-          </Text>
-        </View>
-
-        <View style={styles.topRowRight}>
-          {section === 'upcoming' ? (
-            <ReminderToggle />
-          ) : (
-            <StatusBadge section={section} />
-          )}
-        </View>
-      </View>
-
-      {/* ── Divider ── */}
-      <View style={styles.topDivider} />
-
-      {/* ── Content Row ── */}
-      <View style={styles.contentRow}>
-        {/* Left: Spa image */}
-        <View
-          style={[
-            styles.imageWrapper,
-            { width: imageSize, height: Math.floor(imageSize / CARD_IMAGE_ASPECT) },
-          ]}
-        >
+    <View style={[styles.card, style]} accessibilityRole="none">
+      {/* ── Main Content Row ── */}
+      <View style={styles.mainRow}>
+        {/* Left Column: Spa Image + Overlapping Date Badge */}
+        <View style={[styles.imageCol, { width: imageWidth }]}>
           <Image
-            source={booking.raw.spa_snapshot?.cover_photo_url ? { uri: booking.raw.spa_snapshot?.cover_photo_url } : FALLBACK_IMAGE}
+            source={
+              booking.raw?.spa_snapshot?.cover_photo_url
+                ? { uri: booking.raw.spa_snapshot.cover_photo_url }
+                : FALLBACK_IMAGE
+            }
             style={styles.spaImage}
             resizeMode="cover"
             accessibilityRole="image"
             accessibilityLabel={`${booking.spaName} spa image`}
           />
+          <View style={styles.dateBadge}>
+            <Text style={styles.dateBadgeDay}>{badgeDate.day}</Text>
+            <Text style={styles.dateBadgeMonth}>{badgeDate.month}</Text>
+          </View>
         </View>
 
-        {/* Right: Details */}
-        <View style={styles.detailsColumn}>
-          <Text
-            style={styles.spaName}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            accessibilityRole="text"
-          >
+        {/* Right Column: Details */}
+        <View style={styles.detailsCol}>
+          {/* Time + Reminder/Status Row */}
+          <View style={styles.timeStatusRow}>
+            <View style={styles.timeSubRow}>
+              <Ionicons name="time-outline" size={14} color={C.primary} style={{ marginRight: 4 }} />
+              <Text style={styles.timeText}>{booking.time || '--'}</Text>
+            </View>
+            {section === 'upcoming' ? (
+              <ReminderToggle />
+            ) : (
+              <StatusBadge section={section} />
+            )}
+          </View>
+
+          {/* Divider */}
+          <View style={styles.timeDivider} />
+
+          {/* Spa Name */}
+          <Text style={styles.spaName} numberOfLines={1} ellipsizeMode="tail">
             {booking.spaName}
           </Text>
 
-          <BookingInfoRow
-            iconName="location-sharp"
-            label={`${booking?.raw?.spa_snapshot?.locality_name}, ${booking?.raw?.spa_snapshot?.city_name}` || 'Location unavailable'}
-          />
+          {/* Location Row */}
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={13} color={C.primary} style={{ marginRight: 3 }} />
+            <Text style={styles.locationText} numberOfLines={1} ellipsizeMode="tail">
+              {locationText}
+            </Text>
+          </View>
 
-          <BookingInfoRow
-            iconName="flower-outline"
-            label={serviceLabel}
-          />
+          {/* Open In Maps Row */}
+          <Pressable
+            onPress={handleOpenMaps}
+            style={({ pressed }) => [
+              styles.openMapsBtn,
+              pressed && styles.openMapsBtnPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Open spa in Google Maps"
+          >
+            <View style={styles.openMapsLeft}>
+              <Ionicons name="map-outline" size={13} color={C.primary} style={{ marginRight: 5 }} />
+              <Text style={styles.openMapsText}>Open in maps</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={13} color={C.primary} />
+          </Pressable>
 
-          <BookingInfoRow
-            iconName="person-outline"
-            label={guestLabel}
-          />
-
-          {/* Booking ID */}
-          <View style={styles.bookingIdBlock}>
-            <Text style={styles.bookingIdLabel}>Booking ID: </Text>
-            <Text
-              style={styles.bookingIdValue}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
+          {/* Booking ID Row */}
+          <View style={styles.bookingIdRow}>
+            <Text style={styles.bookingIdLabel}>Booking ID </Text>
+            <Text style={styles.bookingIdSep}>| </Text>
+            <Text style={styles.bookingIdValue} numberOfLines={1} ellipsizeMode="tail">
               {bookingCode}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* ── Bottom Actions Divider ── */}
-      <View style={styles.actionDivider} />
-
-      {/* ── Actions ── */}
+      {/* ── Bottom Actions ── */}
       <BookingActions section={section} booking={booking} />
     </View>
   );
@@ -439,53 +446,163 @@ export default BookingCard;
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // ── Card ──
   card: {
     backgroundColor: C.cardBg,
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: C.border,
+    padding: 14,
     shadowColor: '#1A1A1A',
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 2,
     overflow: 'hidden',
   },
+  mainRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
 
-  // ── Top Row ──
-  topRow: {
+  // Image & Date Badge
+  imageCol: {
+    position: 'relative',
+    height: 145,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#F0EAE0',
+    flexShrink: 0,
+  },
+  spaImage: {
+    width: '100%',
+    height: '100%',
+  },
+  dateBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    backgroundColor: C.primary,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 46,
+  },
+  dateBadgeDay: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 18,
+    color: C.white,
+    lineHeight: 20,
+  },
+  dateBadgeMonth: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 11,
+    color: C.white,
+    lineHeight: 13,
+  },
+
+  // Right Details Column
+  detailsCol: {
+    flex: 1,
+    flexShrink: 1,
+    justifyContent: 'space-between',
+  },
+
+  // Time & Status Row
+  timeStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
   },
-  topRowLeft: {
+  timeSubRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 1,
-    marginRight: 8,
   },
-  topRowCalIcon: {
-    marginRight: 4,
-  },
-  dateTimeText: {
+  timeText: {
     fontFamily: 'WorkSans-Medium',
     fontSize: 12,
     color: C.muted,
-    flexShrink: 1,
   },
-  topRowRight: {
-    flexShrink: 0,
+  timeDivider: {
+    height: 1,
+    backgroundColor: C.divider,
+    marginVertical: 4,
   },
 
-  // ── Status Badge ──
+  // Spa Name & Location
+  spaName: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 16,
+    color: C.heading,
+    marginTop: 1,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  locationText: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 12,
+    color: C.muted,
+    flex: 1,
+  },
+
+  // Open In Maps
+  openMapsBtn: {
+    backgroundColor: '#FFF8F0',
+    borderRadius: 8,
+    height: 30,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  openMapsBtnPressed: {
+    opacity: 0.75,
+  },
+  openMapsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  openMapsText: {
+    fontFamily: 'WorkSans-Medium',
+    fontSize: 12,
+    color: C.primary,
+  },
+
+  // Booking ID
+  bookingIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+  },
+  bookingIdLabel: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 11,
+    color: C.muted,
+  },
+  bookingIdSep: {
+    fontFamily: 'WorkSans-Regular',
+    fontSize: 11,
+    color: '#CCC4B8',
+  },
+  bookingIdValue: {
+    fontFamily: 'Sora-SemiBold',
+    fontSize: 11,
+    color: C.heading,
+    flexShrink: 1,
+  },
+
+  // Status Badges
   badge: {
     borderRadius: 20,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
   badgeCompleted: {
     backgroundColor: C.completedBg,
@@ -505,11 +622,11 @@ const styles = StyleSheet.create({
     color: C.cancelled,
   },
 
-  // ── Reminder Toggle ──
+  // Reminder Toggle
   reminderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   reminderLabel: {
     fontFamily: 'WorkSans-Medium',
@@ -517,103 +634,18 @@ const styles = StyleSheet.create({
     color: C.muted,
   },
   reminderSwitch: {
-    transform: [{ scaleX: 0.75 }, { scaleY: 0.75 }],
+    transform: [{ scaleX: 0.7 }, { scaleY: 0.7 }],
   },
 
-  // ── Dividers ──
-  topDivider: {
-    height: 1,
-    backgroundColor: C.divider,
-    marginHorizontal: 14,
-  },
-  actionDivider: {
-    height: 1,
-    backgroundColor: C.divider,
-    marginHorizontal: 14,
-    marginTop: 12,
-  },
-
-  // ── Content Row ──
-  contentRow: {
-    flexDirection: 'row',
-    padding: 14,
-    gap: 14,
-  },
-
-  // ── Image ──
-  imageWrapper: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    flexShrink: 0,
-    backgroundColor: '#F0EAE0',
-  },
-  spaImage: {
-    width: '100%',
-    height: '100%',
-  },
-
-  // ── Details Column ──
-  detailsColumn: {
-    flex: 1,
-    flexShrink: 1,
-    gap: 8,
-  },
-  spaName: {
-    fontFamily: 'Sora-SemiBold',
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.heading,
-    marginBottom: 2,
-  },
-
-  // ── Info Row ──
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  infoIcon: {
-    flexShrink: 0,
-  },
-  infoText: {
-    fontFamily: 'WorkSans-Medium',
-    fontSize: 12,
-    color: C.body,
-    flexShrink: 1,
-  },
-
-  // ── Booking ID ──
-  bookingIdBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'nowrap',
-    marginTop: 2,
-    flexShrink: 1,
-  },
-  bookingIdLabel: {
-    fontFamily: 'WorkSans-Medium',
-    fontSize: 11,
-    color: C.muted,
-    flexShrink: 0,
-  },
-  bookingIdValue: {
-    fontFamily: 'WorkSans-Medium',
-    fontSize: 11,
-    fontWeight: '700',
-    color: C.heading,
-    flexShrink: 1,
-  },
-
-  // ── Actions ──
+  // Actions Row
   actionsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    marginTop: 12,
     gap: 10,
   },
   actionBtn: {
-    borderRadius: 10,
-    height: 38,
+    borderRadius: 12,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -630,16 +662,15 @@ const styles = StyleSheet.create({
   actionBtnOutlined: {
     borderWidth: 1,
     borderColor: C.outlinedBorder,
-    backgroundColor: 'transparent',
+    backgroundColor: C.white,
   },
   actionBtnPressed: {
-    opacity: 0.75,
+    opacity: 0.8,
   },
   actionBtnText: {
     fontFamily: 'WorkSans-Medium',
     fontSize: 13,
     fontWeight: '600',
-    letterSpacing: 0.1,
   },
   actionBtnTextPrimary: {
     color: C.white,

@@ -180,20 +180,48 @@ const requestLocationPermission =
     return 'unavailable';
   };
 
-const requestIOSPermission =
-  async (): Promise<LocationPermissionStatus> =>
-    new Promise((resolve) => {
-      Geolocation.requestAuthorization(
-        () => resolve('granted'),
-        (error) => {
-          if (__DEV__) {
-            console.warn('[locationService] requestAuthorization error:', error);
-          }
+const requestIOSPermission = async (): Promise<LocationPermissionStatus> =>
+  new Promise((resolve) => {
+    let isSettled = false;
 
-          resolve(mapLocationError(error));
+    // Safety timeout: On iOS, if permission is already granted,
+    // requestAuthorization native callback may never fire.
+    const timerId = setTimeout(() => {
+      if (!isSettled) {
+        isSettled = true;
+        resolve('granted');
+      }
+    }, 1500);
+
+    try {
+      Geolocation.requestAuthorization(
+        () => {
+          if (!isSettled) {
+            isSettled = true;
+            clearTimeout(timerId);
+            resolve('granted');
+          }
+        },
+        (error) => {
+          if (!isSettled) {
+            isSettled = true;
+            clearTimeout(timerId);
+            if (__DEV__) {
+              console.warn('[locationService] requestAuthorization error:', error);
+            }
+
+            resolve(mapLocationError(error));
+          }
         },
       );
-    });
+    } catch (e) {
+      if (!isSettled) {
+        isSettled = true;
+        clearTimeout(timerId);
+        resolve('granted');
+      }
+    }
+  });
 
 // const getPosition = (): Promise<GeolocationResponse> =>
 //   new Promise((resolve, reject) => {

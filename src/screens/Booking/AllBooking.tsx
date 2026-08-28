@@ -32,10 +32,11 @@ const TABS: Array<{ label: string; section: BookingTab }> = [
   { label: 'Cancelled', section: 'cancelled' },
 ];
 
-const EMPTY_STATE_MESSAGES: Record<BookingTab, string> = {
+const EMPTY_STATE_MESSAGES: Record<BookingSection, string> = {
   upcoming: 'No upcoming bookings',
   completed: 'No completed bookings',
   cancelled: 'No cancelled bookings',
+  'no-show': 'No cancelled bookings',
 };
 
 const TabButton = React.memo<TabButtonProps>(function TabButton({

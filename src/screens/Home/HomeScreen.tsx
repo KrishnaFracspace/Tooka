@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Linking, Platform } from 'react-native';
 import {
   FlatList,
@@ -174,9 +174,35 @@ const HomeScreen: React.FC = () => {
 
     Analytics.logEvent(AnalyticsEvents.HOME_VIEWED);
   }, []);
+  const mapRef = useRef<MapView>(null);
+
   useEffect(() => {
-  Crashlytics.log('Application Started');
-}, []);
+    if (
+      location?.latitude != null &&
+      location?.longitude != null &&
+      !isNaN(Number(location.latitude)) &&
+      !isNaN(Number(location.longitude))
+    ) {
+      const lat = Number(location.latitude);
+      const lng = Number(location.longitude);
+
+      try {
+        mapRef.current?.animateToRegion(
+          {
+            latitude: lat,
+            longitude: lng,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          },
+          800,
+        );
+      } catch (err) {
+        if (__DEV__) {
+          console.warn('[HomeScreen] Map animateToRegion error:', err);
+        }
+      }
+    }
+  }, [location?.latitude, location?.longitude]);
 
 
 
@@ -543,6 +569,7 @@ const HomeScreen: React.FC = () => {
                 <View style={styles.mapContainer}>
 
                     <MapView
+                        ref={mapRef}
                         style={styles.map}
                         pointerEvents="none"
                         scrollEnabled={false}
@@ -553,37 +580,47 @@ const HomeScreen: React.FC = () => {
                         loadingEnabled
                         initialRegion={{
                             latitude:
-                                location?.latitude ??
-                                17.41217,
+                                location?.latitude != null && !isNaN(Number(location.latitude))
+                                  ? Number(location.latitude)
+                                  : 17.41217,
                             longitude:
-                                location?.longitude ??
-                                78.42293,
-                            latitudeDelta: 0.01,
-                            longitudeDelta: 0.01,
+                                location?.longitude != null && !isNaN(Number(location.longitude))
+                                  ? Number(location.longitude)
+                                  : 78.42293,
+                            latitudeDelta: 0.05,
+                            longitudeDelta: 0.05,
                         }}>
 
-                        {location?.latitude != null && location?.longitude != null && (
-                          <Marker
-                            coordinate={{
-                              latitude: location.latitude,
-                              longitude: location.longitude,
-                            }}>
-                            <View style={styles.userDot} />
-                          </Marker>
-                        )}
+                        {location?.latitude != null &&
+                          location?.longitude != null &&
+                          !isNaN(Number(location.latitude)) &&
+                          !isNaN(Number(location.longitude)) && (
+                            <Marker
+                              coordinate={{
+                                latitude: Number(location.latitude),
+                                longitude: Number(location.longitude),
+                              }}>
+                              <View style={styles.userDot} />
+                            </Marker>
+                          )}
 
-                        {previewSpas.map(spa => {
-                          // console.log('Spa marker: ', spa.name, spa.lat, spa.lng);
+                        {previewSpas.map((spa) => {
+                          const lat = Number(spa.latitude);
+                          const lng = Number(spa.longitude);
+                          if (isNaN(lat) || isNaN(lng) || !lat || !lng) {
+                            return null;
+                          }
                           return (
                             <Marker
-                                key={spa.id}
-                                coordinate={{
-                                    latitude: Number(spa.latitude),
-                                    longitude: Number(spa.longitude),
-                                }}>
-                                <View style={styles.marker} />
+                              key={spa.id}
+                              coordinate={{
+                                latitude: lat,
+                                longitude: lng,
+                              }}>
+                              <View style={styles.marker} />
                             </Marker>
-                        )})}
+                          );
+                        })}
                     </MapView>
 
                 </View>
