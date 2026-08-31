@@ -20,4 +20,10 @@ buildscript {
     }
 }
 
+subprojects {
+    configurations.configureEach {
+        exclude group: "io.agora.rtc", module: "full-screen-sharing"
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"

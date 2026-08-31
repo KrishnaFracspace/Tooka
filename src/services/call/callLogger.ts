@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const ENABLE_CALL_DIAGNOSTICS = true;
+export const ENABLE_CALL_DIAGNOSTICS = __DEV__;
 
 export enum LogLevel {
   INFO = 'INFO',
