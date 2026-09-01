@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Linking, Platform } from 'react-native';
 import {
   FlatList,
@@ -174,47 +174,9 @@ const HomeScreen: React.FC = () => {
 
     Analytics.logEvent(AnalyticsEvents.HOME_VIEWED);
   }, []);
-  const mapRef = useRef<MapView>(null);
-  const [isMapReady, setIsMapReady] = useState(false);
-
-  const mapRegion = useMemo(() => {
-    const lat = location?.latitude != null ? Number(location.latitude) : NaN;
-    const lng = location?.longitude != null ? Number(location.longitude) : NaN;
-
-    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-      return {
-        latitude: lat,
-        longitude: lng,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
-    }
-
-    return {
-      latitude: 17.41217,
-      longitude: 78.42293,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
-    };
-  }, [location?.latitude, location?.longitude]);
-
   useEffect(() => {
-    if (!isMapReady) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      try {
-        mapRef.current?.animateToRegion(mapRegion, 800);
-      } catch (err) {
-        if (__DEV__) {
-          console.warn('[HomeScreen] Map animateToRegion error:', err);
-        }
-      }
-    }, Platform.OS === 'android' ? 200 : 0);
-
-    return () => clearTimeout(timer);
-  }, [isMapReady, mapRegion]);
+  Crashlytics.log('Application Started');
+}, []);
 
 
 
@@ -578,51 +540,50 @@ const HomeScreen: React.FC = () => {
                     navigation.navigate('Explore')
                 }>
 
-                <View style={styles.mapContainer} pointerEvents="none">
+                <View style={styles.mapContainer}>
 
                     <MapView
-                        ref={mapRef}
                         style={styles.map}
+                        pointerEvents="none"
                         scrollEnabled={false}
                         zoomEnabled={false}
                         rotateEnabled={false}
                         pitchEnabled={false}
                         toolbarEnabled={false}
                         loadingEnabled
-                        onMapReady={() => setIsMapReady(true)}
-                        initialRegion={mapRegion}
-                        region={mapRegion}>
+                        initialRegion={{
+                            latitude:
+                                location?.latitude ??
+                                17.41217,
+                            longitude:
+                                location?.longitude ??
+                                78.42293,
+                            latitudeDelta: 0.01,
+                            longitudeDelta: 0.01,
+                        }}>
 
-                        {location?.latitude != null &&
-                          location?.longitude != null &&
-                          !isNaN(Number(location.latitude)) &&
-                          !isNaN(Number(location.longitude)) && (
-                            <Marker
-                              coordinate={{
-                                latitude: Number(location.latitude),
-                                longitude: Number(location.longitude),
-                              }}>
-                              <View style={styles.userDot} />
-                            </Marker>
-                          )}
+                        {location?.latitude != null && location?.longitude != null && (
+                          <Marker
+                            coordinate={{
+                              latitude: location.latitude,
+                              longitude: location.longitude,
+                            }}>
+                            <View style={styles.userDot} />
+                          </Marker>
+                        )}
 
-                        {previewSpas.map((spa) => {
-                          const lat = Number(spa.latitude);
-                          const lng = Number(spa.longitude);
-                          if (isNaN(lat) || isNaN(lng) || !lat || !lng) {
-                            return null;
-                          }
+                        {previewSpas.map(spa => {
+                          // console.log('Spa marker: ', spa.name, spa.lat, spa.lng);
                           return (
                             <Marker
-                              key={spa.id}
-                              coordinate={{
-                                latitude: lat,
-                                longitude: lng,
-                              }}>
-                              <View style={styles.marker} />
+                                key={spa.id}
+                                coordinate={{
+                                    latitude: Number(spa.latitude),
+                                    longitude: Number(spa.longitude),
+                                }}>
+                                <View style={styles.marker} />
                             </Marker>
-                          );
-                        })}
+                        )})}
                     </MapView>
 
                 </View>

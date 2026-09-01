@@ -449,10 +449,10 @@ function BookingResultScreen(): React.ReactElement {
                 </View>
               </View>
 
-              <View style={styles.divider} />
+              {/* <View style={styles.divider} /> */}
 
-              <Text style={styles.cardLabel}>Service</Text>
-              <Text style={styles.detailValue}>{serviceText}</Text>
+              {/* <Text style={styles.cardLabel}>Service</Text>
+              <Text style={styles.detailValue}>{serviceText}</Text> */}
 
               <View style={styles.divider} />
 
