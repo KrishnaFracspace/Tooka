@@ -436,14 +436,32 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       getCallState: () => callStateRef.current
     });
 
+    // const handleRinging = (payload: any) => {
+    //   setErrorMessage(null);
+    //   if (payload?.direction === 'inbound') {
+    //     callManager.handleIncomingCall(payload);
+    //   } else {
+    //     setCallState(CallState.RINGING);
+    //   }
+    // };
+
     const handleRinging = (payload: any) => {
       setErrorMessage(null);
-      if (payload?.direction === 'inbound') {
-        callManager.handleIncomingCall(payload);
-      } else {
+
+      // Check if this ringing event belongs to the outgoing call WE just initiated
+      const isMyOutgoingCall =
+        callStateRef.current === CallState.OUTGOING ||
+        (sessionRef.current?.sessionId && sessionRef.current.sessionId === payload?.callSessionId);
+
+      if (isMyOutgoingCall) {
+        // We initiated this call -> transition our UI to RINGING
         setCallState(CallState.RINGING);
+      } else {
+        // Someone else is calling us -> handle as incoming call
+        callManager.handleIncomingCall(payload);
       }
     };
+
 
     const handleAnswered = async (payload: any) => {
       if (outgoingTimeoutRef.current) {
