@@ -308,9 +308,16 @@ class CallService {
     const data = payload?.data || payload;
     const callSession = data.callSession || payload.callSession;
     const tokenObj = data.token || payload.token;
-    
-    if (callSession?.id && callSession.id !== this.pendingSession.sessionId) {
-      console.log(`[CallFlow] Ignoring call_accept for unmatched session: ${callSession.id}`);
+
+    // PR-1: the socket call_accept payload is { callSessionId, token } - there is no
+    // nested callSession object, so `callSession?.id` was always undefined and this
+    // guard was skipped entirely, meaning credentials from ANY accepted session were
+    // written onto our pending session. Read the flat id the backend actually sends.
+    const incomingSessionId =
+      callSession?.id || data?.callSessionId || payload?.callSessionId;
+
+    if (incomingSessionId && incomingSessionId !== this.pendingSession.sessionId) {
+      console.log(`[CallFlow] Ignoring call_accept for unmatched session: ${incomingSessionId}`);
       const duration = Date.now() - startTime;
       callLogger.info('SOCKET', `Ignoring call_accept - unmatched session ID. Duration: ${duration}ms`, ctx);
       return;

@@ -219,44 +219,67 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isCleaningUpRef.current) return;
     isCleaningUpRef.current = true;
 
-    console.log('[CALL] Cleaning up call');
-    ringtoneService.stop();
-
-    const sessionToSummarize = sessionRef.current;
-    const durationToSummarize = durationRef.current;
-
-    await callService.cleanup(reason);
-
-    if (durationTimerRef.current) {
-      clearInterval(durationTimerRef.current);
-      durationTimerRef.current = null;
-    }
-    if (outgoingTimeoutRef.current) {
-      clearTimeout(outgoingTimeoutRef.current);
-      outgoingTimeoutRef.current = null;
-    }
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-
-    previousAudioRouteRef.current = null;
-    isFocusLostRef.current = false;
-
     try {
-      printCallSummary(sessionToSummarize, durationToSummarize, reason);
-    } catch (e) {
-      console.error('[CallContext] Failed to print call summary', e);
+      console.log('[CALL] Cleaning up call');
+      ringtoneService.stop();
+
+      const sessionToSummarize = sessionRef.current;
+      const durationToSummarize = durationRef.current;
+
+      await callService.cleanup(reason);
+
+      if (durationTimerRef.current) {
+        clearInterval(durationTimerRef.current);
+        durationTimerRef.current = null;
+      }
+      if (outgoingTimeoutRef.current) {
+        clearTimeout(outgoingTimeoutRef.current);
+        outgoingTimeoutRef.current = null;
+      }
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+
+      previousAudioRouteRef.current = null;
+      isFocusLostRef.current = false;
+
+      try {
+        printCallSummary(sessionToSummarize, durationToSummarize, reason);
+      } catch (e) {
+        console.error('[CallContext] Failed to print call summary', e);
+      }
+
+      setSession(null);
+      setIsMuted(false);
+      setIsSpeaker(false);
+      setDuration(0);
+      setErrorMessage(null);
+
+      // PR-1: null the refs synchronously. They are normally synced by a useEffect
+      // that only runs on the NEXT render, so between cleanup and that render the
+      // Agora callbacks below still saw a live session. Nulling here is also what
+      // keeps those callbacks inert now that the isCleaningUp latch is released.
+      sessionRef.current = null;
+      durationRef.current = 0;
+
+      // PR-1: cleanup deliberately bypasses setCallState(), which is the only place
+      // callStateRef is updated synchronously. Without this line the ref stays on the
+      // terminal state (ENDED/REJECTED/FAILED) until the next render, and in that
+      // window initiateCall() silently no-ops ("Try Again" does nothing) and
+      // callManager.handleIncomingCall() auto-rejects a genuine incoming call as busy.
+      callStateRef.current = CallState.IDLE;
+      callLogger.setCallState(CallState.IDLE);
+      setCallStateInternal(CallState.IDLE); // Force IDLE as reset
+
+      console.log('[CALL] Cleanup completed');
+    } finally {
+      // PR-1: the latch MUST always be released. It was previously set to true and
+      // never cleared, so every cleanup after the first early-returned above: the
+      // Agora channel was never left, the mic stayed live, and onUserOffline was
+      // swallowed so a remote hangup never ended the call locally.
+      isCleaningUpRef.current = false;
     }
-
-    setSession(null);
-    setIsMuted(false);
-    setIsSpeaker(false);
-    setDuration(0);
-    setErrorMessage(null);
-    setCallStateInternal(CallState.IDLE); // Force IDLE as reset
-
-    console.log('[CALL] Cleanup completed');
   }, []);
 
   // AppState Listener to track background/foreground transitions & handle stale state recovery
@@ -436,16 +459,87 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       getCallState: () => callStateRef.current
     });
 
+    // const handleRinging = (payload: any) => {
+    //   setErrorMessage(null);
+    //   if (payload?.direction === 'inbound') {
+    //     callManager.handleIncomingCall(payload);
+    //   } else {
+    //     setCallState(CallState.RINGING);
+    //   }
+    // };
+
+    // PR-1: every server -> client call event in the backend contract carries a FLAT
+    // `callSessionId` ({ callSessionId } / { callSessionId, token }). The old code
+    // only looked for a nested `callSession.id`, which is never present, so the
+    // mismatch guard never ran: a stale or replayed event for a finished session
+    // could tear down an unrelated live call. Deliberately NOT applied to
+    // call_ringing, which by definition announces a session we do not have yet.
+    const currentSessionId = (): string | null =>
+      callService.getActiveSession()?.sessionId ||
+      callService.getConnectingSession()?.sessionId ||
+      callService.getPendingSession()?.sessionId ||
+      sessionRef.current?.sessionId ||
+      null;
+
+    const isForCurrentSession = (payload: any, event: string): boolean => {
+      const incomingId =
+        payload?.callSessionId ||
+        payload?.data?.callSessionId ||
+        payload?.callSession?.id ||
+        payload?.data?.callSession?.id;
+
+      // No id on the payload: accept rather than risk stranding the user in a call
+      // that can never be ended, but make the gap loud.
+      if (!incomingId) {
+        console.warn(`[Socket] ${event} received with no callSessionId. Accepting.`);
+        return true;
+      }
+
+      const current = currentSessionId();
+      if (!current) {
+        console.log(`[Socket] Ignoring ${event} for ${incomingId}: no local session.`);
+        return false;
+      }
+      if (incomingId !== current) {
+        console.log(`[Socket] Ignoring ${event} for ${incomingId}: local session is ${current}.`);
+        return false;
+      }
+      return true;
+    };
+
     const handleRinging = (payload: any) => {
       setErrorMessage(null);
-      if (payload?.direction === 'inbound') {
-        callManager.handleIncomingCall(payload);
-      } else {
+
+      // Check if this ringing event belongs to the outgoing call WE just initiated
+      const isMyOutgoingCall =
+        callStateRef.current === CallState.OUTGOING ||
+        (sessionRef.current?.sessionId && sessionRef.current.sessionId === payload?.callSessionId);
+
+      if (isMyOutgoingCall) {
+        // We initiated this call -> transition our UI to RINGING
         setCallState(CallState.RINGING);
+      } else {
+        // Someone else is calling us -> handle as incoming call
+        callManager.handleIncomingCall(payload);
       }
     };
 
+
     const handleAnswered = async (payload: any) => {
+      if (!isForCurrentSession(payload, 'call_accept')) return;
+
+      // PR-1: the backend emits call_accept to BOTH parties (user:<id> and spa:<id>).
+      // On the device that is itself answering, that echo can arrive before the REST
+      // /accept response resolves - at which point the state is still INCOMING with a
+      // live pendingSession, so the duplicate guards below all pass and this handler
+      // races callManager.acceptCall() into a double joinChannel(), with the loser
+      // promoting to CONNECTED before the join has actually completed.
+      // callManager owns the answering flow; this handler is for the CALLER only.
+      if (callStateRef.current === CallState.INCOMING || callManager.isAcceptInProgress()) {
+        console.log('[Socket] Ignoring call_accept echo on the answering device.');
+        return;
+      }
+
       if (outgoingTimeoutRef.current) {
         clearTimeout(outgoingTimeoutRef.current);
         outgoingTimeoutRef.current = null;
@@ -493,7 +587,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    const handleDeclined = () => {
+    const handleDeclined = (payload: any) => {
+      if (!isForCurrentSession(payload, 'call_reject')) return;
       if (outgoingTimeoutRef.current) {
         clearTimeout(outgoingTimeoutRef.current);
         outgoingTimeoutRef.current = null;
@@ -503,6 +598,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const handleCanceled = (payload: any) => {
+      if (!isForCurrentSession(payload, 'call_cancel')) return;
       if (callStateRef.current === CallState.INCOMING) {
         callManager.handleRemoteEndOrCancel(payload?.callSessionId || sessionRef.current?.sessionId || '', 'call_canceled');
         return;
@@ -516,6 +612,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const handleEnded = (payload: any) => {
+      if (!isForCurrentSession(payload, 'call_end')) return;
       if (callStateRef.current === CallState.INCOMING) {
         callManager.handleRemoteEndOrCancel(payload?.callSessionId || sessionRef.current?.sessionId || '', 'call_ended_remotely');
         return;

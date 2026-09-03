@@ -39,6 +39,14 @@ class CallManager {
     this.contextActions = actions;
   }
 
+  // PR-1: lets CallContext detect that this device is mid-accept, so it can ignore
+  // the call_accept echo the backend sends to both parties instead of racing this
+  // flow into a second joinChannel(). Covers the REST window before the state has
+  // moved off INCOMING.
+  isAcceptInProgress(): boolean {
+    return this.isAccepting;
+  }
+
   async handleIncomingCall(payload: any): Promise<boolean> {
     const startTime = Date.now();
     const { callLogger } = require('./callLogger');

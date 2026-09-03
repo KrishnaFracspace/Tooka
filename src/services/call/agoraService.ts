@@ -374,22 +374,31 @@ class AgoraService {
 
     return new Promise((resolve, reject) => {
       let timeoutId: ReturnType<typeof setTimeout>;
-      let onJoinChannelSuccess: any;
-      let onError: any;
+
+      // PR-1: `settled` makes this attempt's handlers inert once the promise has
+      // been resolved or rejected. Without it, any later Agora callback re-entered
+      // them - and the onError branch calls resetInternalState(), which would flip
+      // isJoined to false during a LIVE call and turn the later leaveChannel() into
+      // a no-op, leaving the channel joined and the mic publishing after hangup.
+      let settled = false;
 
       const cleanup = () => {
         clearTimeout(timeoutId);
-        this.removeListener({ onJoinChannelSuccess, onError });
+        // PR-1: eventHandlers is a Set keyed by object IDENTITY. The old code added
+        // one object literal and removed a different, freshly-built one, so
+        // Set.delete() never matched and NO join listener was ever removed: one
+        // orphaned handler pair leaked per join attempt for the life of the process.
+        // Remove the exact reference we added.
+        this.removeListener(joinHandler);
       };
 
-      onJoinChannelSuccess = (connection: any, elapsed: number) => {
-        if (connection.channelId === channelName) {
+      const joinHandler: Partial<IRtcEngineEventHandler> = {
+        onJoinChannelSuccess: (connection: any, elapsed: number) => {
+          if (settled) return;
+          if (connection.channelId !== channelName) return;
+          settled = true;
 
           console.log("[Agora] Join success - enabling local audio");
-
-          // this.engine?.enableAudio();
-          // this.engine?.enableLocalAudio(true);
-          // this.engine?.muteLocalAudioStream(false);
 
           console.log("[AUDIO] enableAudio()");
           this.engine?.enableAudio();
@@ -411,26 +420,30 @@ class AgoraService {
 
           cleanup();
           resolve();
-        }
+        },
+
+        onError: (err: number, msg: string) => {
+          if (settled) return;
+          const duration = Date.now() - startTime;
+          callLogger.error('AGORA', `joinChannel promise rejected: error: ${msg} (${err}). Duration: ${duration}ms`, ctx);
+          settled = true;
+          // If err === 17, it means already joined. We can resolve.
+          if (err === 17) {
+            cleanup();
+            resolve();
+          } else {
+            cleanup();
+            this.resetInternalState();
+            reject(new Error(`Agora join error: ${err} - ${msg}`));
+          }
+        },
       };
 
-      onError = (err: number, msg: string) => {
-        const duration = Date.now() - startTime;
-        callLogger.error('AGORA', `joinChannel promise rejected: error: ${msg} (${err}). Duration: ${duration}ms`, ctx);
-        // If err === 17, it means already joined. We can resolve.
-        if (err === 17) {
-          cleanup();
-          resolve();
-        } else {
-          cleanup();
-          this.resetInternalState();
-          reject(new Error(`Agora join error: ${err} - ${msg}`));
-        }
-      };
-
-      this.addListener({ onJoinChannelSuccess, onError });
+      this.addListener(joinHandler);
 
       timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
         const duration = Date.now() - startTime;
         callLogger.error('AGORA', `joinChannel promise timed out after 15s. Duration: ${duration}ms`, ctx);
         cleanup();
